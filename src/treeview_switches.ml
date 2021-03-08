@@ -102,7 +102,13 @@ module Command = struct
           Promise.return
           @@ show_message `Warn "The selected item is not an opam switch."
         | Switch (opam, switch) -> (
+          let message =
+            Printf.sprintf "Are you sure you want to remove switch %s?"
+              (Dependency.label dep)
+          in
+          with_confirmation message ~yes:"Remove switch" @@ fun () ->
           let open Promise.Syntax in
+          Sandbox.focus_on_package_command ();
           let+ result = Opam.switch_remove opam switch |> Cmd.output in
           match result with
           | Error err -> show_message `Error "%s" err

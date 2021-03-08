@@ -1,6 +1,18 @@
 # Change Log
 
-## Unreleased
+## 1.8.0
+
+- Highlight OCaml source code inside Cinaps comments (#547)
+
+- Show the output of shell commands in an output channel. The output channel is
+  automatically focused when running a package management command from the OCaml
+  activity tab (#541)
+
+- Fix highlighting of float literals with a trailing decimal point (#548)
+
+- Ask for confirmation when removing opam packages or switches (#551)
+
+## 1.7.0
 
 - Fixed an issue when uninstalled Opam packages still appear in the `roots`
   field of Opam's `switch-state` file (#517)
