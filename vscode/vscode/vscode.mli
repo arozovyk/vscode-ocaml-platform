@@ -1876,7 +1876,7 @@ module rec WebviewPanel : sig
   val onDidChangeViewState :
     t -> WebviewPanelOnDidChangeViewStateEvent.t Event.t
 
-  val onDidDispose : t -> Js.Any.t Event.t
+  val onDidDispose : t -> unit Event.t
 
   val active : t -> bool
 
@@ -1903,7 +1903,7 @@ module rec WebviewPanel : sig
 
   val create :
        onDidChangeViewState:WebviewPanelOnDidChangeViewStateEvent.t Event.t
-    -> onDidDispose:Js.Any.t Event.t
+    -> onDidDispose:Js.Unit.t Event.t
     -> active:bool
     -> options:WebviewPanelOptions.t
     -> title:string
@@ -2061,8 +2061,6 @@ module Window : sig
          ]
     -> Disposable.t
 end
-
-
 
 module Commands : sig
   val registerCommand :

@@ -2309,7 +2309,7 @@ module rec WebviewPanel : sig
   val onDidChangeViewState :
     t -> WebviewPanelOnDidChangeViewStateEvent.t Event.t
 
-  val onDidDispose : t -> Js.Any.t Event.t
+  val onDidDispose : t -> unit Event.t
 
   val active : t -> bool
 
@@ -2336,7 +2336,7 @@ module rec WebviewPanel : sig
 
   val create :
        onDidChangeViewState:WebviewPanelOnDidChangeViewStateEvent.t Event.t
-    -> onDidDispose:Js.Any.t Event.t
+    -> onDidDispose:unit Event.t
     -> active:bool
     -> options:WebviewPanelOptions.t
     -> title:string
@@ -2370,7 +2370,7 @@ end = struct
 
   val onDidChangeViewState : t -> OnDidChangeViewState.t [@@js.get]
 
-  module OnDidDispose = Event.Make (Js.Any)
+  module OnDidDispose = Event.Make (Js.Unit)
 
   val onDidDispose : t -> OnDidDispose.t [@@js.get]
 
@@ -2660,10 +2660,10 @@ module Window = struct
 
   let registerCustomEditorProvider ~(viewType : string)
       ~(provider :
-        [ `CustomTextEditorProvider of CustomTextEditorProvider.t
-        | `CustomReadonlyEditorProvider of CustomTextEditorProvider.t (*TODO*)
-        | `CustomEditorProvider of CustomTextEditorProvider.t (*TODO*)
-        ]) : Disposable.t =
+         [ `CustomTextEditorProvider of CustomTextEditorProvider.t
+         | `CustomReadonlyEditorProvider of CustomTextEditorProvider.t (*TODO*)
+         | `CustomEditorProvider of CustomTextEditorProvider.t (*TODO*)
+         ]) : Disposable.t =
     let extr = function
       | `CustomTextEditorProvider x -> x
       | _ -> failwith "Other editors are not yet implemented"
