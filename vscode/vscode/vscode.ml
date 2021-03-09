@@ -2308,6 +2308,8 @@ module WebView = struct
 
   val html : t -> string [@@js.get]
 
+  val set_html : t -> string -> unit [@@js.set]
+
   val options : t -> WebviewOptions.t [@@js.get]
 
   val asWebviewUri : t -> localResource:Uri.t -> Uri.t [@@js.call]
@@ -2467,16 +2469,20 @@ module CustomTextEditorProvider = struct
   module ResolvedEditor = struct
     type t =
       ([ `Promise of Promise.void
-       | `Unit of Js.Any.t
+       | `Unit of Js.Unit.t
        ]
       [@js.union])
     [@@js]
 
     let t_of_js js_val =
       if Ojs.is_null js_val then
-        `Unit ([%js.to: Js.Any.t] js_val)
+        `Unit ([%js.to: Js.Unit.t] js_val)
       else
         `Promise ([%js.to: Promise.void] js_val)
+
+    let t_to_js = function
+      | `Unit v -> Js.Unit.t_to_js v
+      | `Promise p -> Promise.void_to_js p
   end
 
   val resolveCustomTextEditor :
@@ -2687,22 +2693,24 @@ module Window = struct
     [%js.to: TreeView.t] (createTreeView ~viewId ~options)
 
   val registerCustomEditorProvider :
-    viewType:string -> provider:Ojs.t -> Disposable.t
+       viewType:string
+    -> provider:
+         ([ `CustomTextEditorProvider of CustomTextEditorProvider.t
+          | `CustomReadonlyEditorProvider of CustomTextEditorProvider.t (*TODO*)
+          | `CustomEditorProvider of CustomTextEditorProvider.t (*TODO*)
+          ][@js.union])
+    -> Disposable.t
     [@@js.global "vscode.window.registerCustomEditorProvider"]
 
-  let registerCustomEditorProvider ~(viewType : string)
-      ~(provider :
-         [ `CustomTextEditorProvider of CustomTextEditorProvider.t
-         | `CustomReadonlyEditorProvider of CustomTextEditorProvider.t (*TODO*)
-         | `CustomEditorProvider of CustomTextEditorProvider.t (*TODO*)
-         ]) : Disposable.t =
-    let extr = function
-      | `CustomTextEditorProvider x -> x
-      | _ -> failwith "Other editors are not yet implemented"
-    in
-    let provider = [%js.of: CustomTextEditorProvider.t] (extr provider) in
+  (*let registerCustomEditorProvider ~(viewType : string) ~(provider : [
+    `CustomTextEditorProvider of CustomTextEditorProvider.t |
+    `CustomReadonlyEditorProvider of CustomTextEditorProvider.t (*TODO*) |
+    `CustomEditorProvider of CustomTextEditorProvider.t (*TODO*) ]) :
+    Disposable.t = let extr = function | `CustomTextEditorProvider x -> x | _ ->
+    failwith "Other editors are not yet implemented" in let provider = [%js.of:
+    CustomTextEditorProvider.t] (extr provider) in
 
-    registerCustomEditorProvider ~viewType ~provider
+    registerCustomEditorProvider ~viewType ~provider*)
 end
 
 module Commands = struct

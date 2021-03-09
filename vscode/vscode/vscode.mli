@@ -1875,6 +1875,8 @@ module WebView : sig
 
   val html : t -> string
 
+  val set_html : t -> string -> unit
+
   val options : t -> WebviewOptions.t
 
   val asWebviewUri : t -> localResource:Uri.t -> Uri.t
@@ -1959,8 +1961,12 @@ module CustomTextEditorProvider : sig
   module ResolvedEditor : sig
     type t =
       [ `Promise of Promise.void
-      | `Unit of Js.Any.t
+      | `Unit of Js.Unit.t
       ]
+
+    val t_to_js : t -> Ojs.t
+
+    val t_of_js : Ojs.t -> t
   end
 
   val resolveCustomTextEditor :
