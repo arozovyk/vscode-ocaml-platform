@@ -630,6 +630,23 @@ module WorkspaceConfiguration : sig
     -> Promise.void
 end
 
+module WorkspaceEdit : sig
+  include Js.T
+
+  val size : t -> int
+
+  val set_size : t -> int -> unit
+
+  val replace :
+       t
+    -> uri:Uri.t
+    -> range:Range.t
+    -> newText:string (*TODO ->?metadata:WorkspaceEditEntryMetadata.t*)
+    -> unit
+
+  val make : unit -> t
+end
+
 module StatusBarAlignment : sig
   type t =
     | Left
@@ -1552,6 +1569,26 @@ module Progress : sig
   val report : t -> value:value -> unit
 end
 
+module TextDocumentContentChangeEvent : sig
+  include Js.T
+
+  val range : t -> Range.t
+
+  val rangeLength : t -> int
+
+  val rangeOffset : t -> int
+
+  val text : t -> string
+end
+
+module TextDocumentChangeEvent : sig
+  include Js.T
+
+  val contentChanges : t -> TextDocumentContentChangeEvent.t list
+
+  val document : t -> TextDocument.t
+end
+
 module Workspace : sig
   val workspaceFolders : unit -> WorkspaceFolder.t list
 
@@ -1560,6 +1597,8 @@ module Workspace : sig
   val workspaceFile : unit -> Uri.t option
 
   val onDidChangeWorkspaceFolders : WorkspaceFolder.t Event.t
+
+  val onDidChangeTextDocument : TextDocumentChangeEvent.t Event.t
 
   val getWorkspaceFolder : uri:Uri.t -> WorkspaceFolder.t option
 
@@ -1861,9 +1900,18 @@ module WebviewOptions : sig
 
   val enableScripts : t -> bool
 
+  val set_enableScripts : t -> bool -> unit
+
   val localResourceRoots : t -> Uri.t list
 
   val portMapping : t -> WebviewPortMapping.t list
+
+  val create :
+       enableCommandUris:bool
+    -> enableScripts:bool
+    -> localResourceRoots:Uri.t list
+    -> portMapping:WebviewPortMapping.t list
+    -> t
 end
 
 module WebView : sig
@@ -1878,6 +1926,8 @@ module WebView : sig
   val set_html : t -> string -> unit
 
   val options : t -> WebviewOptions.t
+
+  val set_options : t -> WebviewOptions.t -> unit
 
   val asWebviewUri : t -> localResource:Uri.t -> Uri.t
 

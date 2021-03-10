@@ -764,6 +764,24 @@ module WorkspaceConfiguration = struct
     [@@js.call]
 end
 
+module WorkspaceEdit = struct
+  include Interface.Make ()
+
+  val size : t -> int [@@js.get]
+
+  val set_size : t -> int -> unit [@@js.set]
+
+  val replace :
+       t
+    -> uri:Uri.t
+    -> range:Range.t
+    -> newText:string (*TODO ->?metadata:WorkspaceEditEntryMetadata.t*)
+    -> unit
+    [@@js.call]
+
+  val make : unit -> t [@@js.new "vscode.WorkspaceEdit"]
+end
+
 module StatusBarAlignment = struct
   type t =
     | Left [@js 1]
@@ -1873,6 +1891,26 @@ module Progress = struct
   val report : t -> value:value -> unit [@@js.call]
 end
 
+module TextDocumentContentChangeEvent = struct
+  include Interface.Make ()
+
+  val range : t -> Range.t [@@js.get]
+
+  val rangeLength : t -> int [@@js.get]
+
+  val rangeOffset : t -> int [@@js.get]
+
+  val text : t -> string [@@js.get]
+end
+
+module TextDocumentChangeEvent = struct
+  include Interface.Make ()
+
+  val contentChanges : t -> TextDocumentContentChangeEvent.t list [@@js.get]
+
+  val document : t -> TextDocument.t [@@js.get]
+end
+
 module Workspace = struct
   val workspaceFolders : unit -> WorkspaceFolder.t maybe_list
     [@@js.get "vscode.workspace.workspaceFolders"]
@@ -1889,6 +1927,11 @@ module Workspace = struct
 
   val onDidChangeWorkspaceFolders : OnDidChangeWorkspaceFolders.t
     [@@js.global "vscode.workspace.onDidChangeWorkspaceFolders"]
+
+  module OnDidChangeTextDocument = Event.Make (TextDocumentChangeEvent)
+
+  val onDidChangeTextDocument : OnDidChangeTextDocument.t
+    [@@js.global "vscode.workspace.onDidChangeTextDocument"]
 
   val getWorkspaceFolder : uri:Uri.t -> WorkspaceFolder.t or_undefined
     [@@js.global "vscode.workspace.getWorkspaceFolder"]
@@ -2292,9 +2335,19 @@ module WebviewOptions = struct
 
   val enableScripts : t -> bool [@@js.get]
 
+  val set_enableScripts : t -> bool -> unit [@@js.set]
+
   val localResourceRoots : t -> Uri.t list [@@js.get]
 
   val portMapping : t -> WebviewPortMapping.t list [@@js.get]
+
+  val create :
+       enableCommandUris:bool
+    -> enableScripts:bool
+    -> localResourceRoots:Uri.t list
+    -> portMapping:WebviewPortMapping.t list
+    -> t
+    [@@js.builder]
 end
 
 module WebView = struct
@@ -2311,6 +2364,8 @@ module WebView = struct
   val set_html : t -> string -> unit [@@js.set]
 
   val options : t -> WebviewOptions.t [@@js.get]
+
+  val set_options : t -> WebviewOptions.t -> unit [@@js.set]
 
   val asWebviewUri : t -> localResource:Uri.t -> Uri.t [@@js.call]
 
