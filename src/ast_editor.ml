@@ -64,11 +64,9 @@ let get_html_for_WebView () =
   \        <title>PPM Preview</title>\n\
   \        <meta charset=\" UTF-8\n\
   \      \">\n\
-  \        <meta name=\"viewport\" content=\"width=device-width, \
-   initial-scale=1.0\">\n\
   \        <style>\n\
   \          #canvas {\n\
-  \            background-color: whitesmoke;\n\
+  \            background-color: #347890;\n\
   \            position: fixed;\n\
   \            left: 50%;\n\
   \            top: 50%;\n\
@@ -76,18 +74,13 @@ let get_html_for_WebView () =
   \          }\n\
   \        </style>\n\
   \      </head>\n\
-  \    <body>\n\
-  \    <div class=\"notes\">\n\
-  \      <div class=\"add-button\">\n\
-  \        <button>Scratch2!</button>\n\
-  \      </div>\n\
-  \    </div>\n\
-   <textarea style=\"width: 400px; height: 400px;\"></textarea>\n\n\
+  \    <body>\n\n\
+  \   <textarea style=\" background-color:#347890; width: 700px; height: \
+   700px;\"></textarea>\n\n\
   \      \n\
   \    <script>" ^ canvasScript () ^ "</script>\n  </body>\n  </html>"
 
-
-
+(*^ (Path.asset "ast_view.js" |> Path.to_string) ^*)
 let resolveCustomTextEditor ~(document : TextDocument.t) ~webviewPanel ~token :
     CustomTextEditorProvider.ResolvedEditor.t =
   let _ = token in
@@ -111,12 +104,10 @@ let resolveCustomTextEditor ~(document : TextDocument.t) ~webviewPanel ~token :
   (*Vscode.ExtensionContext.subscribe extension ~disposable:();*)
   WebView.set_html webview (get_html_for_WebView ());
   let listener _event =
-    let value = TextDocument.getText document () in
+    let value = TextDocument.getText document () |> Dumpast.transform in
     let msg = Ojs.empty_obj () in
-    let () = Ojs.set msg "type" (Ojs.string_to_js "setValue") in
-    let () =
-      Ojs.set msg "value" (Ojs.string_to_js value (*TODO transform it to ast*))
-    in
+    Ojs.set msg "type" (Ojs.string_to_js "setValue");
+    Ojs.set msg "value" (Ojs.string_to_js value);
     let _ = WebView.postMessage webview msg in
     ()
   in
