@@ -835,9 +835,10 @@
       {
         "viewType": "ast-editor",
         "displayName": "OCaml AST preview",
+        "priority": "option",
         "selector": [
           {
-            "filenamePattern": "*.ast"
+            "filenamePattern": "*.ml"
           }
         ]
       }
