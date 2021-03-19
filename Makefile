@@ -1,4 +1,5 @@
 build:
+	npm run --prefix react-app build
 	dune build @vscode
 .PHONY: build
 
