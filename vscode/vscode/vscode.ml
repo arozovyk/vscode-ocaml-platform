@@ -1578,11 +1578,11 @@ module TaskDefinition = struct
 
   let get_attribute t = Ojs.get ([%js.of: t] t)
 
-  let set_attribute t = Ojs.set ([%js.of: t] t)
+  let set_attribute t = Ojs.set_prop_ascii ([%js.of: t] t)
 
   let create ~type_ ?(attributes = []) () =
     let obj = Ojs.obj [| ("type", [%js.of: string] type_) |] in
-    let set (key, value) = Ojs.set obj key value in
+    let set (key, value) = Ojs.set_prop_ascii obj key value in
     List.iter set attributes;
     [%js.to: t] obj
 end
