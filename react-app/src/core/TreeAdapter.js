@@ -35,7 +35,7 @@ class TreeAdapter {
     if (this._ranges.has(node)) {
       return this._ranges.get(node);
     }
-    const {nodeToRange} = this._adapterOptions;
+    const { nodeToRange } = this._adapterOptions;
     let range = nodeToRange(node);
     if (node && typeof node === 'object') {
       this._ranges.set(node, range);
@@ -57,7 +57,7 @@ class TreeAdapter {
     return range[0] <= position && position <= range[1];
   }
 
-  hasChildrenInRange(node, key, position, seen=new Set()) {
+  hasChildrenInRange(node, key, position, seen = new Set()) {
     if (this.isLocationProp(key)) {
       return false;
     }
@@ -72,12 +72,12 @@ class TreeAdapter {
     // Not everything that is rendered has location associated with it (most
     // commonly arrays). In such a case we are a looking whether the node
     // contains any other nodes with location data (recursively).
-    for (const {value: child, key} of this.walkNode(node)) {
+    for (const { value: child, key } of this.walkNode(node)) {
       if (this.isInRange(child, key, position)) {
         return true;
       }
     }
-    for (const {value: child, key} of this.walkNode(node)) {
+    for (const { value: child, key } of this.walkNode(node)) {
       if (seen.has(child)) {
         continue;
       }
@@ -135,8 +135,8 @@ const TreeAdapterConfigs = {
     filters: [],
     openByDefault: () => false,
     nodeToRange: () => null,
-    nodeToName: () => { throw new Error('nodeToName must be passed');},
-    walkNode: () => { throw new Error('walkNode must be passed');},
+    nodeToName: () => { throw new Error('nodeToName must be passed'); },
+    walkNode: () => { throw new Error('walkNode must be passed'); },
   },
 
   estree: {
@@ -190,11 +190,11 @@ function isValidPosition(position) {
   return Number.isInteger(position);
 }
 
-export function ignoreKeysFilter(keys=new Set(), key, label) {
+export function ignoreKeysFilter(keys = new Set(), key, label) {
   return {
     key,
     label,
-    test(_, key) { return  keys.has(key); },
+    test(_, key) { return keys.has(key); },
   };
 }
 
@@ -218,7 +218,11 @@ export function emptyKeysFilter() {
   return {
     key: 'hideEmptyKeys',
     label: 'Hide empty keys',
-    test(value, key, fromArray) { return value == null && !fromArray; },
+    test(value, key, fromArray) {
+      return (value == null ||
+        JSON.stringify(value) === JSON.stringify({ "[]": [] })
+        /*|| JSON.stringify(value) === JSON.stringify([])*/) && !fromArray;
+    },
   };
 }
 
@@ -240,7 +244,7 @@ function createTreeAdapter(type, adapterOptions, filterValues) {
   );
 }
 
-export function treeAdapterFromParseResult({treeAdapter}, filterValues) {
+export function treeAdapterFromParseResult({ treeAdapter }, filterValues) {
   return createTreeAdapter(
     treeAdapter.type,
     treeAdapter.options,

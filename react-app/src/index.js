@@ -4,7 +4,6 @@ import '../css/style.css';
 import InteractorFactory from './Interaction/InteractorFactory';
 import "regenerator-runtime/runtime";
 import ASTOutput from './components/ASTOutput';
-import astExample from './containers/test.json'
 import getTreeAdapter from './parserMiddleware'
 import newParser from './parsers/refmt-ml'
 const Interactor = InteractorFactory.create();

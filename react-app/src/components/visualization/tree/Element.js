@@ -420,7 +420,7 @@ const PrimitiveElement = React.memo(function PrimitiveElement({
     <li className="entry">
       {name ? <PropertyName name={name} computed={computed} /> : null}
       <span className="value">
-        <span className="s">{stringify(value)}</span>
+        <span className="s">{stringify(value).replaceAll("\\","")}</span>
       </span>
     </li>
   );
