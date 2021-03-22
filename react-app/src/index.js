@@ -13,11 +13,29 @@ class Index extends React.Component {
 
   constructor(props) {
     super(props);
-    this.state = { ast: '' }
-    this.state = { directoryInfo: "" };
+    this.state = { treeAdapter: getTreeAdapter(newParser) }
+    this.state = { 
+      astResult: {
+        ast: null,
+        error: null,
+        time: 120,
+        treeAdapter: this.state.treeAdapter
+      }
+    }
     window.addEventListener('message', event => {
+      var parseRes =event.data.value
+       
+      //console.log(JSON.stringify(parseRes));
+      //console.log(JSON.stringify(astExample));
+
+
       this.setState({
-        ast: event.data.value
+        astResult: {
+          ast: parseRes,
+          error: null,
+          time: 120,
+          treeAdapter: getTreeAdapter(newParser)
+        }
       });
     });
 
@@ -34,18 +52,11 @@ class Index extends React.Component {
 
   render() {
 
-    const treeAdapter = getTreeAdapter(newParser)
 
-    const astExampleResult = {
-      ast: astExample,
-      error: null,
-      time: 120,
-      treeAdapter: treeAdapter
-    }
 
     return <>
-      <div className="container">test{this.state.ast}
-        <ASTOutput parseResult={astExampleResult} position={0} />
+      <div className="container">
+        <ASTOutput parseResult={this.state.astResult} position={0} />
         {this.message}
       </div>
     </>
