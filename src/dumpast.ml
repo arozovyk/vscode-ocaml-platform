@@ -1,50 +1,96 @@
 open Ppxlib
-open Import
+open Jsonoo.Encode
 
+let stringify j =
+  let str = Jsonoo.stringify j in
+  String.sub str 1 (String.length str - 2)
 
+let parse_ast =
+  object (self)
+    inherit [Jsonoo.t] Ast_traverse.lift as super
 
-let string_constants_of =
-  object
-    inherit [string list] Ast_traverse.fold as super
+    method unit () = null
 
-   method! expression e acc =
-      let acc = super#expression e acc in
-      match e.pexp_desc with
-      | Pexp_constant (Pconst_string (s, _)) ->
-        ("Pexp_constant ( " ^ "Pconst_string (\"" ^ s ^ "\"))") :: acc
-      | Pexp_constant (Pconst_integer (i, _)) ->
-        ("Pexp_constant (" ^ "Pconst_string (\"" ^ i ^ "\"))") :: acc
-      | Pexp_ident { txt = Lident op; _ } ->
-        ("Pexp_ident " ^ "{txt = Lident \"" ^ op ^ "\"} ") :: acc
-      | _ -> acc
+    method tuple args = list id args
 
-    method! pattern p acc =
-      let acc = super#pattern p acc in
-      match p.ppat_desc with
-      | Ppat_constant (Pconst_string (s, _)) -> s :: acc
-      | _ -> acc
+    method string value = string value
 
-    
+    method float value = float value
+
+    method bool value = bool value
+
+    method record args = object_ args
+
+    method other _ = string "other?"
+
+    method nativeint _ = string "nativeint"
+
+    method int64 _ = string "int64"
+
+    method int32 _ = string "int32"
+
+    method int value = int value
+
+    method constr label args = object_ [ (label, list id args) ]
+
+    method char value = char value
+
+    method array f arg = list id (Array.to_list arg |> List.map f)
+
+    method! value_binding { pvb_pat; pvb_expr; pvb_attributes; pvb_loc } =
+      object_
+        [ ("type", string "value_binding")
+        ; ("pvb_pat", super#pattern pvb_pat)
+        ; ("pvb_expr", self#expression pvb_expr)
+        ; ("pvb_attributes", super#attributes pvb_attributes)
+        ; ("pvb_loc", super#location pvb_loc)
+        ]
+
+    method! structure_item { pstr_desc; pstr_loc } =
+      object_
+        [ ("type", string "structure_item")
+        ; ("pstr_desc", self#structure_item_desc pstr_desc)
+        ; ("pstr_loc", super#location pstr_loc)
+        ]
+
+    method! structure s = object_ [ ("structure", list self#structure_item s) ]
+
+    method! longident lident =
+      match lident with
+      | Lident txt -> string ("Lident \"" ^ txt ^ "\"")
+      | Ldot (t, s) ->
+        string ("Ldot (" ^ stringify (self#longident t) ^ "," ^ "\"" ^ s ^ "\")")
+      | Lapply (t, k) ->
+        string
+          ( "Lapply ("
+          ^ stringify (self#longident t)
+          ^ ","
+          ^ stringify (self#longident k)
+          ^ ")" )
+
+    method! longident_loc { txt; _ } = self#longident txt
+
+    method! expression_desc expression_desc =
+      match expression_desc with
+      | Pexp_ident txt ->
+        string ("Pexp_ident {" ^ stringify (self#longident_loc txt) ^ "}")
+      | _ -> super#expression_desc expression_desc
+
+    method! expression { pexp_desc; pexp_loc; pexp_loc_stack; pexp_attributes }
+        =
+      object_
+        [ ("type", string "expression")
+        ; ("pexp_desc", self#expression_desc pexp_desc)
+        ; ("pexp_loc", super#location pexp_loc)
+        ; ("pexp_loc_stack", super#location_stack pexp_loc_stack)
+        ; ("pexp_attributes", super#attributes pexp_attributes)
+        ]
+
+    method! list f = list f
   end
-
-let string_constants_of_expression = string_constants_of#expression
-
-let rec ident l ~i =
-  match l with
-  | [] -> []
-  | e :: t ->
-    if String.sub e ~pos:0 ~len:10 |> String.equal "Pexp_ident" then
-      (i ^ e) :: ident t ~i:("----" ^ i)
-    else
-      (i ^ e) :: ident t ~i
 
 let transform source =
   try
-    print_endline (Int.to_string 3);
-    let v = Parse.expression (Lexing.from_string source) in
-    (* print_int (List.length (string_constants_of_expression v [])) *)
-    let ast_list =
-      string_constants_of_expression v [] |> List.rev |> ident ~i:""
-    in
-    List.fold_left ast_list ~f:(fun x y -> x ^ "\n" ^ y) ~init:""
-  with _ -> "Syntax error"
+    let v = Parse.implementation (Lexing.from_string source) in
+    parse_ast#structure v
+  with _ -> Jsonoo.Encode.string "Syntax error"
