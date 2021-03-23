@@ -4,6 +4,26 @@ let get_html_for_WebView_from_file =
   let filename = Node.__dirname () ^ "/../react-app/dist/index.html" in
   In_channel.read_all filename
 
+let onDidReceiveMessageListener msg ~(document : TextDocument.t) =
+  let cbegin = Int.of_string (Ojs.string_of_js (Ojs.get msg "begin")) in
+  let cend = Int.of_string (Ojs.string_of_js (Ojs.get msg "end")) in
+  let eq a b =
+    String.equal
+      (Uri.toString (TextDocument.uri a) ())
+      (Uri.toString (TextDocument.uri b) ())
+  in
+  let visibleTextEditors =
+    List.filter (Vscode.Window.visibleTextEditors ()) ~f:(fun editor ->
+        eq (TextEditor.document editor) document)
+  in
+  let apply_selection editor =
+    TextEditor.set_selection editor
+      (Selection.makePositions
+         ~anchor:(Vscode.TextDocument.positionAt document ~offset:cbegin)
+         ~active:(Vscode.TextDocument.positionAt document ~offset:cend))
+  in
+  List.iter ~f:apply_selection visibleTextEditors
+
 (*^ (Path.asset "ast_view.js" |> Path.to_string) ^*)
 let resolveCustomTextEditor ~(document : TextDocument.t) ~webviewPanel ~token :
     CustomTextEditorProvider.ResolvedEditor.t =
@@ -13,8 +33,11 @@ let resolveCustomTextEditor ~(document : TextDocument.t) ~webviewPanel ~token :
   let options = WebView.options webview in
   WebviewOptions.set_enableScripts options true;
   WebView.set_options webview options;
-  let listener _ = print_endline "i'm working!1" in
-  let _ = WebView.onDidReceiveMessage webview ~listener () in
+  let _ =
+    WebView.onDidReceiveMessage webview
+      ~listener:(onDidReceiveMessageListener ~document)
+      ()
+  in
   WebView.set_html webview get_html_for_WebView_from_file;
 
   (*let disposable = Commands.registerCommand
