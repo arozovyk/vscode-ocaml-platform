@@ -9,7 +9,8 @@ fixtures/
 lib/
 src/
 test/
-
+react-app/
+!react-app/dist/index.html
 .gitignore
 .merlin
 **/*.map
