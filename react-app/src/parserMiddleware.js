@@ -3,7 +3,6 @@
 import { ignoreKeysFilter, locationInformationFilter, functionFilter, emptyKeysFilter, typeKeysFilter } from './core/TreeAdapter.js';
 
 export default function getTreeAdapter(newParser) {
-    console.log(newParser);
     return {
         type: 'default',
         options: {

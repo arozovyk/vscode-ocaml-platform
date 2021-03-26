@@ -13,29 +13,37 @@ class Index extends React.Component {
   constructor(props) {
     super(props);
     this.state = { treeAdapter: getTreeAdapter(newParser) }
-    this.state = { 
+    this.state = {
       astResult: {
         ast: null,
         error: null,
         time: 120,
         treeAdapter: this.state.treeAdapter
-      }
+      },
+      position: 0
     }
     window.addEventListener('message', event => {
-      var parseRes =event.data.value
-       
-      //console.log(JSON.stringify(parseRes));
-      //console.log(JSON.stringify(astExample));
+
+      switch (event.data.type) {
+        case 'parse':
+          var parseRes = event.data.value
+          this.setState({
+            astResult: {
+              ast: parseRes,
+              error: null,
+              time: 120,
+              treeAdapter: getTreeAdapter(newParser)
+            }
+          });
+          break;
+        case 'focus':
+
+          this.setState({ position: event.data.value })
+          break;
 
 
-      this.setState({
-        astResult: {
-          ast: parseRes,
-          error: null,
-          time: 120,
-          treeAdapter: getTreeAdapter(newParser)
-        }
-      });
+      }
+
     });
 
   }
@@ -55,7 +63,7 @@ class Index extends React.Component {
 
     return <>
       <div className="container">
-        <ASTOutput parseResult={this.state.astResult} position={0} />
+        <ASTOutput parseResult={this.state.astResult} position={this.state.position} />
         {this.message}
       </div>
     </>
@@ -63,3 +71,6 @@ class Index extends React.Component {
 }
 
 ReactDOM.render(<Index />, document.getElementById("index"));
+
+
+
