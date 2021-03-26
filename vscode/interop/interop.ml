@@ -1,5 +1,5 @@
 let iter_set obj field f = function
-  | Some value -> Ojs.set_prop_ascii obj field (f value)
+  | Some value -> Ojs.set obj field (f value)
   | None -> ()
 
 let undefined = Ojs.variable "undefined"

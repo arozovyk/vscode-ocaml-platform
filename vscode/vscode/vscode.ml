@@ -640,6 +640,8 @@ module TextEditor = struct
 
   val selection : t -> Selection.t [@@js.get]
 
+  val set_selection : t -> Selection.t -> unit [@@js.set]
+
   val selections : t -> Selection.t list [@@js.get]
 
   val visibleRanges : t -> Range.t list [@@js.get]
@@ -1578,11 +1580,11 @@ module TaskDefinition = struct
 
   let get_attribute t = Ojs.get ([%js.of: t] t)
 
-  let set_attribute t = Ojs.set_prop_ascii ([%js.of: t] t)
+  let set_attribute t = Ojs.set ([%js.of: t] t)
 
   let create ~type_ ?(attributes = []) () =
     let obj = Ojs.obj [| ("type", [%js.of: string] type_) |] in
-    let set (key, value) = Ojs.set_prop_ascii obj key value in
+    let set (key, value) = Ojs.set obj key value in
     List.iter set attributes;
     [%js.to: t] obj
 end
@@ -1690,6 +1692,43 @@ module DocumentFormattingEditProvider = struct
           -> options:FormattingOptions.t
           -> token:CancellationToken.t
           -> TextEdit.t list ProviderResult.t)
+    -> t
+    [@@js.builder]
+end
+
+module Hover = struct
+  include Interface.Make ()
+
+  val contents : t -> MarkdownString.t [@@js.get]
+
+  val range : t -> Range.t [@@js.get]
+
+  val make :
+       contents:
+         ([ `MarkdownString of MarkdownString.t
+          | `MarkdownStringArray of MarkdownString.t list
+          ][@js.union])
+    -> t
+    [@@js.new "vscode.Hover"]
+end
+
+module HoverProvider = struct
+  include Interface.Make ()
+
+  val provideHover :
+       t
+    -> document:TextDocument.t
+    -> position:Position.t
+    -> token:CancellationToken.t
+    -> Hover.t list ProviderResult.t
+    [@@js.call]
+
+  val create :
+       provideHover:
+         (   document:TextDocument.t
+          -> position:Position.t
+          -> token:CancellationToken.t
+          -> Hover.t list ProviderResult.t)
     -> t
     [@@js.builder]
 end
@@ -2801,6 +2840,10 @@ module Languages = struct
     -> provider:DocumentFormattingEditProvider.t
     -> Disposable.t
     [@@js.global "vscode.languages.registerDocumentFormattingEditProvider"]
+
+  val registerHoverProvider :
+    selector:DocumentSelector.t -> provider:HoverProvider.t -> Disposable.t
+    [@@js.global "vscode.languages.registerHoverProvider"]
 end
 
 module Tasks = struct
