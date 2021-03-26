@@ -1,5 +1,12 @@
 open Import
 
+let send_msg t value ~(webview : WebView.t) =
+  let msg = Ojs.empty_obj () in
+  Ojs.set msg "type" (Ojs.string_to_js t);
+  Ojs.set msg "value" value;
+  let _ = WebView.postMessage webview msg in
+  ()
+
 let document_eq a b =
   String.equal
     (Uri.toString (TextDocument.uri a) ())
@@ -11,11 +18,7 @@ let get_html_for_WebView_from_file =
 
 let transform_to_ast ~(document : TextDocument.t) ~(webview : WebView.t) =
   let value = TextDocument.getText document () |> Dumpast.transform in
-  let msg = Ojs.empty_obj () in
-  Ojs.set msg "type" (Ojs.string_to_js "setValue");
-  Ojs.set msg "value" (Jsonoo.t_to_js value);
-  let _ = WebView.postMessage webview msg in
-  ()
+  send_msg "parse" (Jsonoo.t_to_js value) ~webview
 
 let onDidChangeTextDocument_listener event ~(document : TextDocument.t)
     ~(webview : WebView.t) =
@@ -40,6 +43,26 @@ let onDidReceiveMessage_listener msg ~(document : TextDocument.t) =
          ~active:(Vscode.TextDocument.positionAt document ~offset:cend))
   in
   List.iter ~f:apply_selection visibleTextEditors
+
+let on_hover custom_doc webview =
+  let hover =
+    Hover.make
+      ~contents:
+        (`MarkdownString (MarkdownString.make ~value:"hover is working" ()))
+  in
+  let provideHover ~(document : TextDocument.t) ~(position : Position.t)
+      ~(token : CancellationToken.t) =
+    let _ = token in
+    let offset = TextDocument.offsetAt document ~position in
+    if document_eq custom_doc document then
+      send_msg "focus" (Ojs.int_to_js offset) ~webview
+    else
+      ();
+    `Value (Some [ hover ])
+  in
+
+  let provider = HoverProvider.create ~provideHover in
+  Vscode.Languages.registerHoverProvider ~selector:(`String "ocaml") ~provider
 
 (*^ (Path.asset "ast_view.js" |> Path.to_string) ^*)
 let resolveCustomTextEditor ~(document : TextDocument.t) ~webviewPanel ~token :
@@ -73,6 +96,8 @@ let resolveCustomTextEditor ~(document : TextDocument.t) ~webviewPanel ~token :
       ()
   in
   transform_to_ast ~document ~webview;
+  let _ = on_hover document webview in
+
   CustomTextEditorProvider.ResolvedEditor.t_of_js (Ojs.variable "null")
 
 let register extension =
