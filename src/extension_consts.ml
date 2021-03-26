@@ -32,6 +32,9 @@ module Commands = struct
   let evaluate_selection = ocaml_prefixed "evaluate-selection"
 
   let open_repl = ocaml_prefixed "open-repl"
+
+  let open_to_the_side_ast_preview = ocaml_prefixed "open-to-the-side-ast-preview"
+
 end
 
 (* TODO: Refactor the code so that we don't need any "constants" module *)
