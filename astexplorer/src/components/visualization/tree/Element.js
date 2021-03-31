@@ -172,10 +172,10 @@ const Element = React.memo(function Element({
       publish('HIGHLIGHT', {node: value, range});
     };
 
-    onMouseLeave = event => {
+    /*onMouseLeave = event => {
       event.stopPropagation();
       publish('CLEAR_HIGHLIGHT', {node: value, range});
-    };
+    };*/
   }
 
   const clickHandler = useCallback(

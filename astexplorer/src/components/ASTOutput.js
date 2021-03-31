@@ -20,7 +20,6 @@ export default function ASTOutput({ parseResult = {}, position = null }) {
   const { ast = null } = parseResult;
   let output;
 
-
   output = (
     <ErrorBoundary>
       {
@@ -32,22 +31,28 @@ export default function ASTOutput({ parseResult = {}, position = null }) {
     </ErrorBoundary>
   )
 
-
+  
   let buttons = visualizations.map(
-    (cls, index) =>
+    (_, index) =>
       <button
         key={index}
         value={index}
-        //onClick={event => setSelectedOutput(event.target.value)}
+        onClick={event => setSelectedOutput(event.target.value)}
         className={cx({
           active: selectedOutput == index,
         })}>
-        {cls.name}
-      </button>,
+        {index === 0 ? "Original" : "Preprocessed"}
+      </button>
   );
 
   return (
     <div className="output highlight">
+      <div className="toolbar">
+        {buttons}
+        <span className="time">
+          {formatTime(parseResult.time)}
+        </span>
+      </div>
       {output}
     </div>
   );

@@ -1,5 +1,5 @@
 {
-  "name": "react-app",
+  "name": "astexplorer",
   "version": "1.0.0",
   "description": "Search app using React",
   "main": "index.js",
@@ -28,6 +28,7 @@
   },
   "dependencies": {
     "font-awesome": "^4.5.0",
+    "json-stringify-safe": "^5.0.1",
     "prop-types": "^15.5.10",
     "react": "^16.8.6",
     "react-dom": "^16.8.6",
