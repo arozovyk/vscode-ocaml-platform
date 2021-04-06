@@ -13,4 +13,4 @@ node_modules/
 *.vsix
 
 test_extension.vsix
-react-app/dist
+astexplorer/dist/*
