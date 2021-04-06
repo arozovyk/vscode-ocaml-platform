@@ -1956,6 +1956,9 @@ module Workspace = struct
 
   val name : unit -> string or_undefined [@@js.get "vscode.workspace.name"]
 
+  val rootPath : unit -> string or_undefined
+    [@@js.get "vscode.workspace.rootPath"]
+
   val workspaceFile : unit -> Uri.t or_undefined
     [@@js.get "vscode.workspace.workspaceFile"]
 
@@ -1984,6 +1987,11 @@ module Workspace = struct
 
   val onDidCloseTextDocument : OnDidCloseTextDocument.t
     [@@js.global "vscode.workspace.onDidCloseTextDocument"]
+
+  val asRelativePath :
+   pathOrUri:([ `String of string | `Uri of Uri.t ][@js.union])
+    -> string
+    [@@js.global "vscode.workspace.asRelativePath"]
 
   val getConfiguration :
        ?section:string

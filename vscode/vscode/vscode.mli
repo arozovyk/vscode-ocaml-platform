@@ -1630,11 +1630,17 @@ module Workspace : sig
 
   val name : unit -> string option
 
+  val rootPath : unit -> string or_undefined
+
   val workspaceFile : unit -> Uri.t option
 
   val onDidChangeWorkspaceFolders : WorkspaceFolder.t Event.t
 
   val onDidChangeTextDocument : TextDocumentChangeEvent.t Event.t
+
+  val asRelativePath :
+   pathOrUri:([ `String of string | `Uri of Uri.t ][@js.union])
+    -> string
 
   val getWorkspaceFolder : uri:Uri.t -> WorkspaceFolder.t option
 
