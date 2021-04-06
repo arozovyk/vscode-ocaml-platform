@@ -48,10 +48,12 @@ let onDidReceiveMessage_listener msg ~(document : TextDocument.t) =
         document_eq (TextEditor.document editor) document)
   in
   let apply_selection editor =
-    TextEditor.set_selection editor
-      (Selection.makePositions
-         ~anchor:(Vscode.TextDocument.positionAt document ~offset:cbegin)
-         ~active:(Vscode.TextDocument.positionAt document ~offset:cend))
+    let anchor = Vscode.TextDocument.positionAt document ~offset:cbegin in
+    let active = Vscode.TextDocument.positionAt document ~offset:cend in
+    TextEditor.revealRange editor
+      ~range:(Range.makePositions ~start:anchor ~end_:active)
+      ();
+    TextEditor.set_selection editor (Selection.makePositions ~anchor ~active)
   in
   List.iter ~f:apply_selection visibleTextEditors
 
