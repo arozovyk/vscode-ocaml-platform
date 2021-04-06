@@ -1,4 +1,5 @@
 open Import
+
 let pp_exists absolutePath = Sys.file_exists absolutePath
 
 let get_pp_path ~(document : TextDocument.t) =
@@ -38,7 +39,6 @@ let get_preprocessed_structure path =
     In_channel.close ic;
     raise e
 
-
 (*this is not pretty*)
 let ocamlformat message =
   let tmp_path = "/tmp/pp_to_format" in
@@ -65,5 +65,4 @@ let ocamlformat message =
       In_channel.close chan;
       List.rev !lines
   in
-  read_file tmp_path
-  |> List.fold ~init:"" ~f:(fun x y -> x ^ y ^ "\n")
+  read_file tmp_path |> List.fold ~init:"" ~f:(fun x y -> x ^ y ^ "\n")

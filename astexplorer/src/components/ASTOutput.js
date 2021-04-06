@@ -31,7 +31,6 @@ export default function ASTOutput({ parseResult = {}, ppParseResult = {}, positi
     </ErrorBoundary>
   )
 
- console.log(selectedOutput);
   let buttons = visualizations.map(
     (_, index) =>
       <button

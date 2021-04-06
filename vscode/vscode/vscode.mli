@@ -1639,8 +1639,7 @@ module Workspace : sig
   val onDidChangeTextDocument : TextDocumentChangeEvent.t Event.t
 
   val asRelativePath :
-   pathOrUri:([ `String of string | `Uri of Uri.t ][@js.union])
-    -> string
+    pathOrUri:([ `String of string | `Uri of Uri.t ][@js.union]) -> string
 
   val getWorkspaceFolder : uri:Uri.t -> WorkspaceFolder.t option
 

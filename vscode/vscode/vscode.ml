@@ -1989,8 +1989,7 @@ module Workspace = struct
     [@@js.global "vscode.workspace.onDidCloseTextDocument"]
 
   val asRelativePath :
-   pathOrUri:([ `String of string | `Uri of Uri.t ][@js.union])
-    -> string
+    pathOrUri:([ `String of string | `Uri of Uri.t ][@js.union]) -> string
     [@@js.global "vscode.workspace.asRelativePath"]
 
   val getConfiguration :

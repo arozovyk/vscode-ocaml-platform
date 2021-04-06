@@ -17,7 +17,6 @@ let get_html_for_WebView_from_file =
   let filename = Node.__dirname () ^ "/../astexplorer/dist/index.html" in
   In_channel.read_all filename
 
-
 let transform_to_ast ~(document : TextDocument.t) ~(webview : WebView.t) =
   let open Jsonoo.Encode in
   let value = TextDocument.getText document () |> Dumpast.transform in
