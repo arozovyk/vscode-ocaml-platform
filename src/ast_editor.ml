@@ -1,4 +1,5 @@
 open Import
+open Ppx_utils
 
 let send_msg t value ~(webview : WebView.t) =
   let msg = Ojs.empty_obj () in
@@ -13,12 +14,23 @@ let document_eq a b =
     (Uri.toString (TextDocument.uri b) ())
 
 let get_html_for_WebView_from_file =
-  let filename = Node.__dirname () ^ "/../react-app/dist/index.html" in
+  let filename = Node.__dirname () ^ "/../astexplorer/dist/index.html" in
   In_channel.read_all filename
 
+
 let transform_to_ast ~(document : TextDocument.t) ~(webview : WebView.t) =
+  let open Jsonoo.Encode in
   let value = TextDocument.getText document () |> Dumpast.transform in
-  send_msg "parse" (Jsonoo.t_to_js value) ~webview
+  let pp_path = get_pp_path ~document in
+  let pp_value =
+    if pp_exists pp_path then
+      let ppstruct = get_preprocessed_structure (get_pp_path ~document) in
+      Dumpast.from_structure ppstruct
+    else
+      null
+  in
+  let astpair = object_ [ ("ast", value); ("pp_ast", pp_value) ] in
+  send_msg "parse" (Jsonoo.t_to_js astpair) ~webview
 
 let onDidChangeTextDocument_listener event ~(document : TextDocument.t)
     ~(webview : WebView.t) =
