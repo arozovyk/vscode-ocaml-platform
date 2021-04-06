@@ -94,3 +94,7 @@ let transform source =
     let v = Parse.implementation (Lexing.from_string source) in
     parse_ast#structure v
   with _ -> Jsonoo.Encode.string "Syntax error"
+
+let from_structure (structure : Parsetree.structure) =
+  try parse_ast#structure structure
+  with _ -> Jsonoo.Encode.string "Syntax error"
