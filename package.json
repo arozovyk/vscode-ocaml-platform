@@ -32,7 +32,9 @@
     "onCommand:ocaml.select-sandbox",
     "onCommand:ocaml.open-terminal",
     "onCommand:ocaml.open-terminal-select",
+    "onCommand:ocaml.open-to-the-side-ast-preview",
     "onCustomEditor:ast-editor",
+    "onCustomEditor:pp-editor",
     "workspaceContains:**/dune-project",
     "workspaceContains:**/*.opam",
     "workspaceContains:**/*.ml",
@@ -195,6 +197,11 @@
         "command": "ocaml.evaluate-selection",
         "category": "OCaml",
         "title": "Evaluate Selection"
+      },
+      {
+        "command": "ocaml.open-to-the-side-ast-preview",
+        "category": "OCaml",
+        "title": "AST preview"
       }
     ],
     "keybindings": [
@@ -832,6 +839,16 @@
       {
         "viewType": "ast-editor",
         "displayName": "OCaml AST preview",
+        "priority": "option",
+        "selector": [
+          {
+            "filenamePattern": "*.ml"
+          }
+        ]
+      },
+      {
+        "viewType": "pp-editor",
+        "displayName": "Preprocessed AST preview",
         "priority": "option",
         "selector": [
           {
