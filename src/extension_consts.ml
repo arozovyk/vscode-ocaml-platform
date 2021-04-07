@@ -31,10 +31,14 @@ module Commands = struct
 
   let evaluate_selection = ocaml_prefixed "evaluate-selection"
 
+  let reveal_ast_node = ocaml_prefixed "reveal-ast-node"
+
   let open_repl = ocaml_prefixed "open-repl"
 
-  let open_to_the_side_ast_preview = ocaml_prefixed "open-to-the-side-ast-preview"
+  let open_ast_explorer_to_the_side =
+    ocaml_prefixed "open-ast-explorer-to-the-side"
 
+  let show_preprocessed_document = ocaml_prefixed "show-preprocessed-document"
 end
 
 (* TODO: Refactor the code so that we don't need any "constants" module *)

@@ -1,5 +1,34 @@
 open Import
 open Ppx_utils
+module WebViewStore = Map.Make (String)
+
+(*TODO: decreaste the number on disposed webviews, and replace the function with
+  proper webview store mechanism*)
+let number_of_visible_webviews = ref 0
+
+let rightmost_column () =
+  let open ViewColumn in
+  let to_int col = t_to_js col |> Ojs.int_of_js in
+  let of_int i = Ojs.int_to_js i |> t_of_js in
+  let visibleTextEditors = Window.visibleTextEditors () in
+  (* let _ = List.iter visibleTextEditors ~f:(fun x -> let i = to_int ( match
+     TextEditor.viewColumn x with | Some column -> column | None -> One ) in
+     print_endline (Int.to_string i)) in *)
+  let iCol =
+    ( List.fold visibleTextEditors ~init:One ~f:(fun acc editor ->
+          let editorColumn =
+            match TextEditor.viewColumn editor with
+            | Some column -> column
+            | None -> One
+          in
+          max (to_int acc) (to_int editorColumn) |> of_int)
+    |> to_int )
+    + 1
+    + !number_of_visible_webviews
+  in
+  of_int iCol
+
+let webview_map = ref WebViewStore.empty
 
 let send_msg t value ~(webview : WebView.t) =
   let msg = Ojs.empty_obj () in
@@ -13,7 +42,9 @@ let document_eq a b =
     (Uri.toString (TextDocument.uri a) ())
     (Uri.toString (TextDocument.uri b) ())
 
-let get_html_for_WebView_from_file =
+let document_id document = Uri.toString (TextDocument.uri document) ()
+
+let get_html_for_WebView_from_file () =
   let filename = Node.__dirname () ^ "/../astexplorer/dist/index.html" in
   In_channel.read_all filename
 
@@ -31,12 +62,43 @@ let transform_to_ast ~(document : TextDocument.t) ~(webview : WebView.t) =
   let astpair = object_ [ ("ast", value); ("pp_ast", pp_value) ] in
   send_msg "parse" (Jsonoo.t_to_js astpair) ~webview
 
+let savedWebviewPanels = ref []
+
+let to_str col = ViewColumn.t_to_js col |> Ojs.int_of_js |> Int.to_string
+
+let updateSavedWebViews ~(document : TextDocument.t) =
+  List.iter !savedWebviewPanels ~f:(fun wvp ->
+      let webview = WebviewPanel.webview !wvp in
+      transform_to_ast ~document ~webview)
+
+let _showNewWebviewPanel ~document () =
+  let webviewpanel =
+    Window.createWebviewPanel ~viewType:"ocaml" ~title:"Ast explorer"
+      ~showOptions:(rightmost_column ())
+  in
+  let webview = WebviewPanel.webview webviewpanel in
+  WebView.set_html webview (get_html_for_WebView_from_file ());
+  let options = WebView.options webview in
+  WebviewOptions.set_enableScripts options true;
+  WebView.set_options webview options;
+  savedWebviewPanels := ref webviewpanel :: !savedWebviewPanels;
+  transform_to_ast ~document ~webview;
+  let listener () =
+    number_of_visible_webviews := !number_of_visible_webviews - 1
+  in
+  let _ = WebviewPanel.onDidDispose webviewpanel ~listener () in
+  let column = rightmost_column () in
+  print_endline ("Column webview  : " ^ to_str column);
+  WebviewPanel.reveal webviewpanel ~preserveFocus:true ();
+  number_of_visible_webviews := !number_of_visible_webviews + 1
+
 let onDidChangeTextDocument_listener event ~(document : TextDocument.t)
     ~(webview : WebView.t) =
   let changed_document = TextDocumentChangeEvent.document event in
-  if document_eq document changed_document then
-    transform_to_ast ~document ~webview
-  else
+  if document_eq document changed_document then (
+    transform_to_ast ~document ~webview;
+    updateSavedWebViews ~document
+  ) else
     ()
 
 let onDidReceiveMessage_listener msg ~(document : TextDocument.t) =
@@ -57,15 +119,94 @@ let onDidReceiveMessage_listener msg ~(document : TextDocument.t) =
   in
   List.iter ~f:apply_selection visibleTextEditors
 
-let on_hover custom_doc webview =
+module Command = struct
+  let _reveal_ast_node =
+    let handler _ ~textEditor ~edit:_ ~args:_ =
+      let (_ : unit Promise.t) =
+        let selection = Vscode.TextEditor.selection textEditor in
+        let document = TextEditor.document textEditor in
+        let position = Vscode.Selection.start selection in
+        let webview =
+          match WebViewStore.find !webview_map (document_id document) with
+          | Some wv -> wv
+          | None ->
+            print_endline "Not found";
+            failwith "Webview wasnt found"
+        in
+        let offset = TextDocument.offsetAt document ~position in
+        Promise.make (fun ~resolve:_ ~reject:_ ->
+            send_msg "focus" (Ojs.int_to_js offset) ~webview)
+      in
+      ()
+    in
+    Extension_commands.register_text_editor
+      ~id:Extension_consts.Commands.reveal_ast_node handler
+
+  let _open_ast_explorer_to_the_side =
+    let handler _ ~textEditor ~edit:_ ~args:_ =
+      let (_ : unit Promise.t) =
+        let document = TextEditor.document textEditor in
+        Promise.make (fun ~resolve:_ ~reject:_ ->
+            _showNewWebviewPanel ~document ())
+      in
+      ()
+    in
+    Extension_commands.register_text_editor
+      ~id:Extension_consts.Commands.open_ast_explorer_to_the_side handler
+
+  let open_text_docment_content content ~column =
+    let open Promise.Syntax in
+    let* doc =
+      let textDocumentOptions =
+        let open Workspace in
+        { language = "ocaml"; content }
+      in
+      Workspace.openTextDocument (`Interactive (Some textDocumentOptions))
+    in
+    (* let* _ = TextDocument.save doc in *)
+    let+ text_editor =
+      Window.showTextDocument ~document:(`TextDocument doc) ~column ()
+    in
+    ();
+    text_editor
+
+  let _show_preprocessed_document =
+    let handler _ ~textEditor ~edit:_ ~args:_ =
+      let (_ : unit Promise.t) =
+        (* let document = TextEditor.document textEditor in let firstLine =
+           TextDocument.lineAt document ~line:0 in let lastLine =
+           TextDocument.lineAt document ~line:(TextDocument.lineCount document -
+           1) in let location = `Range (Range.makePositions ~start:(Range.start
+           (TextLine.range firstLine)) ~end_:(Range.end_ (TextLine.range
+           lastLine))) in let _ = TextEditor.edit textEditor ~callback:(fun
+           ~editBuilder -> TextEditorEdit.replace editBuilder ~location
+           ~value:"SKATINA") () in Promise.make (fun ~resolve:_ ~reject:_ -> let
+           _ = Window.showTextDocument ~document:(`TextDocument document)
+           ~column:(ViewColumn.Beside) () in ()) in () *)
+        let document = TextEditor.document textEditor in
+        let column = rightmost_column () in
+        print_endline ("Column preprocessed  : " ^ to_str column);
+        let str = get_preprocessed_structure (get_pp_path ~document) in
+        let pp_ast = Format.asprintf "%a" Pprintast.structure str in
+        Promise.make (fun ~resolve:_ ~reject:_ ->
+            let _ = open_text_docment_content (ocamlformat pp_ast) ~column in
+            ())
+      in
+
+      ()
+    in
+    Extension_commands.register_text_editor
+      ~id:Extension_consts.Commands.show_preprocessed_document handler
+end
+
+let _on_hover custom_doc webview =
   let hover =
     Hover.make
       ~contents:
         (`MarkdownString (MarkdownString.make ~value:"hover is working" ()))
   in
   let provideHover ~(document : TextDocument.t) ~(position : Position.t)
-      ~(token : CancellationToken.t) =
-    let _ = token in
+      ~token:_ =
     let offset = TextDocument.offsetAt document ~position in
     if document_eq custom_doc document then
       send_msg "focus" (Ojs.int_to_js offset) ~webview
@@ -83,6 +224,10 @@ let resolveCustomTextEditor ~(document : TextDocument.t) ~webviewPanel ~token :
   let _ = document in
   let _ = token in
   let webview = WebviewPanel.webview webviewPanel in
+  (*persist the webview*)
+  webview_map :=
+    WebViewStore.set !webview_map ~key:(document_id document) ~data:webview;
+
   let options = WebView.options webview in
   WebviewOptions.set_enableScripts options true;
   WebView.set_options webview options;
@@ -91,7 +236,7 @@ let resolveCustomTextEditor ~(document : TextDocument.t) ~webviewPanel ~token :
       ~listener:(onDidReceiveMessage_listener ~document)
       ()
   in
-  WebView.set_html webview get_html_for_WebView_from_file;
+  WebView.set_html webview (get_html_for_WebView_from_file ());
 
   (*let disposable = Commands.registerCommand
     ~command:Extension_consts.Commands.open_to_the_side_ast_preview
@@ -109,8 +254,8 @@ let resolveCustomTextEditor ~(document : TextDocument.t) ~webviewPanel ~token :
       ()
   in
   transform_to_ast ~document ~webview;
-  let _ = on_hover document webview in
 
+  (* let _ = _on_hover document webview in *)
   CustomTextEditorProvider.ResolvedEditor.t_of_js (Ojs.variable "null")
 
 let register extension =
