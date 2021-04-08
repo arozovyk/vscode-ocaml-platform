@@ -2021,9 +2021,11 @@ module rec WebviewPanel : sig
 
   val webview : t -> WebView.t
 
+  val set_webview : t -> WebView.t -> unit
+
   val dispose : t -> Js.Any.t
 
-  val reveal : t -> ViewColumn.t -> preserveFocus:bool -> unit
+  val reveal : t -> ?preserveFocus:bool -> ?viewColumn:ViewColumn.t ->unit -> unit
 
   val create :
        onDidChangeViewState:WebviewPanelOnDidChangeViewStateEvent.t Event.t
@@ -2036,7 +2038,7 @@ module rec WebviewPanel : sig
     -> visible:bool
     -> webview:WebView.t
     -> dispose:Js.Any.t
-    -> reveal:(ViewColumn.t -> preserveFocus:bool -> unit)
+    -> reveal:(?preserveFocus:bool -> ?viewColumn:ViewColumn.t ->unit -> unit)
     -> t
 end
 
@@ -2179,6 +2181,12 @@ module Window : sig
 
   val createTreeView :
     'a Js.t -> viewId:string -> options:'a TreeViewOptions.t -> 'a TreeView.t
+
+  val createWebviewPanel :
+       viewType:string
+    -> title:string
+    -> showOptions:ViewColumn.t
+    -> WebviewPanel.t
 
   val registerCustomEditorProvider :
        viewType:string

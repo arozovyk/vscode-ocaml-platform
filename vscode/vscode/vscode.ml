@@ -2465,9 +2465,11 @@ module rec WebviewPanel : sig
 
   val webview : t -> WebView.t
 
+  val set_webview : t -> WebView.t -> unit
+
   val dispose : t -> Js.Any.t
 
-  val reveal : t -> ViewColumn.t -> preserveFocus:bool -> unit
+  val reveal : t -> ?preserveFocus:bool -> ?viewColumn:ViewColumn.t -> unit ->unit
 
   val create :
        onDidChangeViewState:WebviewPanelOnDidChangeViewStateEvent.t Event.t
@@ -2480,7 +2482,7 @@ module rec WebviewPanel : sig
     -> visible:bool
     -> webview:WebView.t
     -> dispose:Js.Any.t
-    -> reveal:(ViewColumn.t -> preserveFocus:bool -> unit)
+    -> reveal:(?preserveFocus:bool -> ?viewColumn:ViewColumn.t -> unit -> unit)
     -> t
 end = struct
   include Interface.Make ()
@@ -2534,9 +2536,12 @@ end = struct
 
   val webview : t -> WebView.t [@@js.get]
 
+  val set_webview : t -> WebView.t -> unit [@@js.set]
+
   val dispose : t -> Js.Any.t [@@js.call]
 
-  val reveal : t -> ViewColumn.t -> preserveFocus:bool -> unit [@@js.call]
+  val reveal : t -> ?preserveFocus:bool -> ?viewColumn:ViewColumn.t ->unit -> unit
+    [@@js.call]
 
   val create :
        onDidChangeViewState:OnDidChangeViewState.t
@@ -2549,7 +2554,7 @@ end = struct
     -> visible:bool
     -> webview:WebView.t
     -> dispose:Js.Any.t
-    -> reveal:(ViewColumn.t -> preserveFocus:bool -> unit)
+    -> reveal:(?preserveFocus:bool -> ?viewColumn:ViewColumn.t ->unit -> unit)
     -> t
     [@@js.builder]
 end
@@ -2793,6 +2798,13 @@ module Window = struct
     let options = [%js.of: TreeViewOptions.t] options in
     [%js.to: TreeView.t] (createTreeView ~viewId ~options)
 
+  val createWebviewPanel :
+       viewType:string
+    -> title:string
+    -> showOptions:ViewColumn.t
+    -> WebviewPanel.t
+    [@@js.global "vscode.window.createWebviewPanel"]
+
   val registerCustomEditorProvider :
        viewType:string
     -> provider:
@@ -2802,16 +2814,6 @@ module Window = struct
           ][@js.union])
     -> Disposable.t
     [@@js.global "vscode.window.registerCustomEditorProvider"]
-
-  (*let registerCustomEditorProvider ~(viewType : string) ~(provider : [
-    `CustomTextEditorProvider of CustomTextEditorProvider.t |
-    `CustomReadonlyEditorProvider of CustomTextEditorProvider.t (*TODO*) |
-    `CustomEditorProvider of CustomTextEditorProvider.t (*TODO*) ]) :
-    Disposable.t = let extr = function | `CustomTextEditorProvider x -> x | _ ->
-    failwith "Other editors are not yet implemented" in let provider = [%js.of:
-    CustomTextEditorProvider.t] (extr provider) in
-
-    registerCustomEditorProvider ~viewType ~provider*)
 end
 
 module Commands = struct
