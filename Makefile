@@ -1,7 +1,11 @@
+
 build:
-	npm run --prefix astexplorer build
 	dune build @vscode
 .PHONY: build
+
+view-build:
+	npm run --prefix astexplorer build
+.PHONY: astexplorer
 
 watch:
 	dune build @vscode -w
