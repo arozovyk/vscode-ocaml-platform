@@ -6,7 +6,9 @@ module WebViewStore = Map.Make (String)
   proper webview store mechanism*)
 let number_of_visible_webviews = ref 0
 
-let rightmost_column () =
+(*doesnt work because of the bug where the Webview doesn't increment the
+  totalColumnCount*)
+let _rightmost_column () =
   let open ViewColumn in
   let to_int col = t_to_js col |> Ojs.int_of_js in
   let of_int i = Ojs.int_to_js i |> t_of_js in
@@ -74,7 +76,7 @@ let updateSavedWebViews ~(document : TextDocument.t) =
 let _showNewWebviewPanel ~document () =
   let webviewpanel =
     Window.createWebviewPanel ~viewType:"ocaml" ~title:"Ast explorer"
-      ~showOptions:(rightmost_column ())
+      ~showOptions:(_rightmost_column ())
   in
   let webview = WebviewPanel.webview webviewpanel in
   WebView.set_html webview (get_html_for_WebView_from_file ());
@@ -87,7 +89,7 @@ let _showNewWebviewPanel ~document () =
     number_of_visible_webviews := !number_of_visible_webviews - 1
   in
   let _ = WebviewPanel.onDidDispose webviewpanel ~listener () in
-  let column = rightmost_column () in
+  let column = _rightmost_column () in
   print_endline ("Column webview  : " ^ to_str column);
   WebviewPanel.reveal webviewpanel ~preserveFocus:true ();
   number_of_visible_webviews := !number_of_visible_webviews + 1
@@ -120,6 +122,39 @@ let onDidReceiveMessage_listener msg ~(document : TextDocument.t) =
   List.iter ~f:apply_selection visibleTextEditors
 
 module Command = struct
+  let open_ast_explorer ~uri =
+    let _ =
+      Vscode.Commands.executeCommand ~command:"vscode.openWith"
+        ~args:
+          [ Uri.t_to_js uri
+          ; Ojs.string_to_js "ast-editor"
+          ; ViewColumn.t_to_js ViewColumn.Beside
+          ]
+    in
+    ()
+
+  let open_text_docment_content content =
+    let open Promise.Syntax in
+    let* doc =
+      let textDocumentOptions =
+        let open Workspace in
+        { language = "ocaml"; content }
+      in
+      Workspace.openTextDocument (`Interactive (Some textDocumentOptions))
+    in
+    (* let* _ = TextDocument.save doc in *)
+    let+ text_editor =
+      Window.showTextDocument ~document:(`TextDocument doc)
+        ~column:ViewColumn.Beside ()
+    in
+    ();
+    text_editor
+
+  let open_both_ppx_ast content ~uri =
+    let open Promise.Syntax in
+    let+ _ = open_text_docment_content content in
+    open_ast_explorer ~uri
+
   let _reveal_ast_node =
     let handler _ ~textEditor ~edit:_ ~args:_ =
       let (_ : unit Promise.t) =
@@ -145,58 +180,46 @@ module Command = struct
   let _open_ast_explorer_to_the_side =
     let handler _ ~textEditor ~edit:_ ~args:_ =
       let (_ : unit Promise.t) =
-        let document = TextEditor.document textEditor in
-        Promise.make (fun ~resolve:_ ~reject:_ ->
-            _showNewWebviewPanel ~document ())
+        let uri = TextEditor.document textEditor |> TextDocument.uri in
+        Promise.make (fun ~resolve:_ ~reject:_ -> open_ast_explorer ~uri)
       in
       ()
     in
     Extension_commands.register_text_editor
       ~id:Extension_consts.Commands.open_ast_explorer_to_the_side handler
 
-  let open_text_docment_content content ~column =
-    let open Promise.Syntax in
-    let* doc =
-      let textDocumentOptions =
-        let open Workspace in
-        { language = "ocaml"; content }
-      in
-      Workspace.openTextDocument (`Interactive (Some textDocumentOptions))
-    in
-    (* let* _ = TextDocument.save doc in *)
-    let+ text_editor =
-      Window.showTextDocument ~document:(`TextDocument doc) ~column ()
-    in
-    ();
-    text_editor
-
   let _show_preprocessed_document =
     let handler _ ~textEditor ~edit:_ ~args:_ =
       let (_ : unit Promise.t) =
-        (* let document = TextEditor.document textEditor in let firstLine =
-           TextDocument.lineAt document ~line:0 in let lastLine =
-           TextDocument.lineAt document ~line:(TextDocument.lineCount document -
-           1) in let location = `Range (Range.makePositions ~start:(Range.start
-           (TextLine.range firstLine)) ~end_:(Range.end_ (TextLine.range
-           lastLine))) in let _ = TextEditor.edit textEditor ~callback:(fun
-           ~editBuilder -> TextEditorEdit.replace editBuilder ~location
-           ~value:"SKATINA") () in Promise.make (fun ~resolve:_ ~reject:_ -> let
-           _ = Window.showTextDocument ~document:(`TextDocument document)
-           ~column:(ViewColumn.Beside) () in ()) in () *)
         let document = TextEditor.document textEditor in
-        let column = rightmost_column () in
-        print_endline ("Column preprocessed  : " ^ to_str column);
         let str = get_preprocessed_structure (get_pp_path ~document) in
         let pp_ast = Format.asprintf "%a" Pprintast.structure str in
         Promise.make (fun ~resolve:_ ~reject:_ ->
-            let _ = open_text_docment_content (ocamlformat pp_ast) ~column in
+            let _ = open_text_docment_content (ocamlformat pp_ast) in
             ())
       in
-
       ()
     in
     Extension_commands.register_text_editor
       ~id:Extension_consts.Commands.show_preprocessed_document handler
+
+  let _open_pp_editor_and_ast_explorer =
+    let handler _ ~textEditor ~edit:_ ~args:_ =
+      let (_ : unit Promise.t) =
+        let document = TextEditor.document textEditor in
+        let str = get_preprocessed_structure (get_pp_path ~document) in
+        let pp_ast = Format.asprintf "%a" Pprintast.structure str in
+        Promise.make (fun ~resolve:_ ~reject:_ ->
+            let _ =
+              open_both_ppx_ast (ocamlformat pp_ast)
+                ~uri:(TextDocument.uri document)
+            in
+            ())
+      in
+      ()
+    in
+    Extension_commands.register_text_editor
+      ~id:Extension_consts.Commands.open_pp_editor_and_ast_explorer handler
 end
 
 let _on_hover custom_doc webview =
@@ -218,7 +241,6 @@ let _on_hover custom_doc webview =
   let provider = HoverProvider.create ~provideHover in
   Vscode.Languages.registerHoverProvider ~selector:(`String "ocaml") ~provider
 
-(*^ (Path.asset "ast_view.js" |> Path.to_string) ^*)
 let resolveCustomTextEditor ~(document : TextDocument.t) ~webviewPanel ~token :
     CustomTextEditorProvider.ResolvedEditor.t =
   let _ = document in
@@ -237,17 +259,6 @@ let resolveCustomTextEditor ~(document : TextDocument.t) ~webviewPanel ~token :
       ()
   in
   WebView.set_html webview (get_html_for_WebView_from_file ());
-
-  (*let disposable = Commands.registerCommand
-    ~command:Extension_consts.Commands.open_to_the_side_ast_preview
-    ~callback:(fun ~args:_ -> WebviewPanel.reveal webviewPanel ViewColumn.Two
-    ~preserveFocus:false) in Vscode.ExtensionContext.subscribe extension
-    ~disposable;*)
-  (*let disposable = Commands.registerCommand
-    ~command:Extension_consts.Commands.open_to_the_side_ast_preview
-    ~callback:(fun ~args:_ -> WebviewPanel.reveal webviewPanel ViewColumn.Two
-    ~preserveFocus:false) in Vscode.ExtensionContext.subscribe extension
-    ~disposable*)
   let _ =
     Workspace.onDidChangeTextDocument
       ~listener:(onDidChangeTextDocument_listener ~webview ~document)

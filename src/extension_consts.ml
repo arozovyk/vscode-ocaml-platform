@@ -39,6 +39,9 @@ module Commands = struct
     ocaml_prefixed "open-ast-explorer-to-the-side"
 
   let show_preprocessed_document = ocaml_prefixed "show-preprocessed-document"
+
+  let open_pp_editor_and_ast_explorer =
+    ocaml_prefixed "open-pp-editor-and-ast-explorer"
 end
 
 (* TODO: Refactor the code so that we don't need any "constants" module *)

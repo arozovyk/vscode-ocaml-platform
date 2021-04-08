@@ -34,6 +34,7 @@
     "onCommand:ocaml.open-terminal-select",
     "onCommand:ocaml.open-ast-explorer-to-the-side",
     "onCommand:ocaml.show-preprocessed-document",
+    "onCommand:ocaml.open-pp-editor-and-ast-explorer",
     "onCustomEditor:ast-editor",
     "onCustomEditor:pp-editor",
     "workspaceContains:**/dune-project",
@@ -214,6 +215,12 @@
         "command": "ocaml.show-preprocessed-document",
         "category": "OCaml",
         "title": "Show Preprocessed Document"
+      }
+      ,
+      {
+        "command": "ocaml.open-pp-editor-and-ast-explorer",
+        "category": "OCaml",
+        "title": "Open both ppx editor and AST explorer to the Side"
       }
     ],
     "keybindings": [
