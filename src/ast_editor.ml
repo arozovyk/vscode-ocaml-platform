@@ -133,27 +133,77 @@ module Command = struct
     in
     ()
 
-  let open_text_docment_content content =
+  let open_pp_doc ~document =
+    let str = get_preprocessed_structure (get_pp_path ~document) in
+    let pp_ast = Format.asprintf "%a" Pprintast.structure str in
     let open Promise.Syntax in
     let* doc =
       let textDocumentOptions =
         let open Workspace in
-        { language = "ocaml"; content }
+        { language = "ocaml"; content = ocamlformat pp_ast }
       in
       Workspace.openTextDocument (`Interactive (Some textDocumentOptions))
     in
     (* let* _ = TextDocument.save doc in *)
-    let+ text_editor =
+    let+ _ =
       Window.showTextDocument ~document:(`TextDocument doc)
         ~column:ViewColumn.Beside ()
     in
-    ();
-    text_editor
+    0
 
-  let open_both_ppx_ast content ~uri =
+  let manage_choice choice ~document : int Promise.t =
+    let make_p c = Promise.resolve c in
+    let buildCmd () =
+      Sys.command
+        ("cd " ^ project_root_path ~document ^ ";eval $(opam env); dune build")
+    in
+    let rec build_project () =
+      let open Promise.Syntax in
+      if buildCmd () = 0 then
+        open_pp_doc ~document
+      else
+        let* perror =
+          Window.showErrorMessage
+            ~message:"Building project failed, fix project errors and retry."
+            ~choices:[ ("Retry running `dune build`", 0); ("Abandon", 1) ]
+            ()
+        in
+        match perror with
+        | Some 0 -> build_project ()
+        | _ -> make_p 1
+    in
+    match choice with
+    | Some 0 -> build_project ()
+    | _ -> make_p 1
+
+  let manage_open_failure ~document =
     let open Promise.Syntax in
-    let+ _ = open_text_docment_content content in
-    open_ast_explorer ~uri
+    let* choice =
+      Window.showInformationMessage
+        ~message:
+          ( "Seems like the file '"
+          ^ relative_document_path ~document
+          ^ "' haven't been preprocessed yet." )
+        ~choices:[ ("Run `dune build`", 0); ("Abandon", 1) ]
+        ()
+    in
+    manage_choice choice ~document
+
+  (*this needs testing (especially on linux)*)
+  let open_preprocessed_doc_to_the_side ~document =
+    let pp_path = get_pp_path ~document in
+    if pp_exists pp_path then
+      open_pp_doc ~document
+    else
+      manage_open_failure ~document
+
+  let open_both_ppx_ast ~document =
+    let open Promise.Syntax in
+    let+ pp_doc_open = open_preprocessed_doc_to_the_side ~document in
+    if pp_doc_open = 0 then
+      open_ast_explorer ~uri:(TextDocument.uri document)
+    else
+      ()
 
   let _reveal_ast_node =
     let handler _ ~textEditor ~edit:_ ~args:_ =
@@ -192,10 +242,9 @@ module Command = struct
     let handler _ ~textEditor ~edit:_ ~args:_ =
       let (_ : unit Promise.t) =
         let document = TextEditor.document textEditor in
-        let str = get_preprocessed_structure (get_pp_path ~document) in
-        let pp_ast = Format.asprintf "%a" Pprintast.structure str in
+
         Promise.make (fun ~resolve:_ ~reject:_ ->
-            let _ = open_text_docment_content (ocamlformat pp_ast) in
+            let _ = open_preprocessed_doc_to_the_side ~document in
             ())
       in
       ()
@@ -207,13 +256,9 @@ module Command = struct
     let handler _ ~textEditor ~edit:_ ~args:_ =
       let (_ : unit Promise.t) =
         let document = TextEditor.document textEditor in
-        let str = get_preprocessed_structure (get_pp_path ~document) in
-        let pp_ast = Format.asprintf "%a" Pprintast.structure str in
         Promise.make (fun ~resolve:_ ~reject:_ ->
-            let _ =
-              open_both_ppx_ast (ocamlformat pp_ast)
-                ~uri:(TextDocument.uri document)
-            in
+            let _ = open_both_ppx_ast ~document in
+
             ())
       in
       ()
@@ -243,7 +288,6 @@ let _on_hover custom_doc webview =
 
 let resolveCustomTextEditor ~(document : TextDocument.t) ~webviewPanel ~token :
     CustomTextEditorProvider.ResolvedEditor.t =
-  let _ = document in
   let _ = token in
   let webview = WebviewPanel.webview webviewPanel in
   (*persist the webview*)

@@ -2,19 +2,22 @@ open Import
 
 let pp_exists absolutePath = Sys.file_exists absolutePath
 
+let project_root_path ~document =
+  let relative =
+    Workspace.asRelativePath ~pathOrUri:(`Uri (TextDocument.uri document))
+  in
+  match Workspace.rootPath () with
+  | Some rootPath -> rootPath
+  | None -> raise (Failure ("Couldnt find root path for " ^ relative))
+
+let relative_document_path ~document =
+  Workspace.asRelativePath ~pathOrUri:(`Uri (TextDocument.uri document))
+
 let get_pp_path ~(document : TextDocument.t) =
   try
-    let relative =
-      Workspace.asRelativePath ~pathOrUri:(`Uri (TextDocument.uri document))
-    in
-    let _root =
-      match Workspace.rootPath () with
-      | Some rootPath -> rootPath
-      | None -> raise (Failure ("Couldnt find root path for " ^ relative))
-    in
-    let _filename = TextDocument.fileName document in
-
-    _root ^ "/_build/default/"
+    let relative = relative_document_path ~document in
+    project_root_path ~document
+    ^ "/_build/default/"
     ^ String.sub ~pos:0 ~len:(String.length relative - 2) relative
     ^ "pp.ml"
   with Failure errorMsg -> errorMsg
@@ -23,7 +26,6 @@ let get_preprocessed_structure path =
   let ic = In_channel.create path in
   try
     let result = Migrate_parsetree.Ast_io.from_channel ic in
-
     match result with
     | Ok (_, ast) -> (
       match ast with
