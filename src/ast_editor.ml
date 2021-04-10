@@ -1,10 +1,43 @@
 open Import
 open Ppx_utils
-module WebViewStore = Map.Make (String)
+module StringMap = Map.Make (String)
 
 (*TODO: decreaste the number on disposed webviews, and replace the function with
   proper webview store mechanism*)
 let number_of_visible_webviews = ref 0
+
+let pp_doc_to_changed_origin_map = ref StringMap.empty
+
+let origin_to_pp_doc_map = ref StringMap.empty
+
+let doc_string_uri ~document = Uri.toString (TextDocument.uri document) ()
+
+let put_keys_into_a_list data_serached map =
+  StringMap.filteri ~f:(fun ~key:_ ~data -> String.equal data_serached data) map
+  |> StringMap.to_alist |> List.unzip |> fst
+
+let set_changes_tracking origin pp_doc =
+  origin_to_pp_doc_map :=
+    StringMap.set !origin_to_pp_doc_map
+      ~key:(doc_string_uri ~document:origin)
+      ~data:(doc_string_uri ~document:pp_doc);
+  pp_doc_to_changed_origin_map :=
+    StringMap.set
+      !pp_doc_to_changed_origin_map
+      ~key:(doc_string_uri ~document:pp_doc)
+      ~data:false
+
+let set_origin_changed ~data ~key =
+  pp_doc_to_changed_origin_map :=
+    StringMap.set !pp_doc_to_changed_origin_map ~key ~data
+
+let on_origin_update_content changed_document =
+  match
+    StringMap.find !origin_to_pp_doc_map
+      (doc_string_uri ~document:changed_document)
+  with
+  | Some key -> set_origin_changed ~key ~data:true
+  | None -> ()
 
 (*doesnt work because of the bug where the Webview doesn't increment the
   totalColumnCount*)
@@ -13,9 +46,6 @@ let _rightmost_column () =
   let to_int col = t_to_js col |> Ojs.int_of_js in
   let of_int i = Ojs.int_to_js i |> t_of_js in
   let visibleTextEditors = Window.visibleTextEditors () in
-  (* let _ = List.iter visibleTextEditors ~f:(fun x -> let i = to_int ( match
-     TextEditor.viewColumn x with | Some column -> column | None -> One ) in
-     print_endline (Int.to_string i)) in *)
   let iCol =
     ( List.fold visibleTextEditors ~init:One ~f:(fun acc editor ->
           let editorColumn =
@@ -30,7 +60,7 @@ let _rightmost_column () =
   in
   of_int iCol
 
-let webview_map = ref WebViewStore.empty
+let webview_map = ref StringMap.empty
 
 let send_msg t value ~(webview : WebView.t) =
   let msg = Ojs.empty_obj () in
@@ -103,10 +133,13 @@ let onDidChangeTextDocument_listener event ~(document : TextDocument.t)
   ) else
     ()
 
+let onDidChangeTextDocument_listener_pp event =
+  let changed_document = TextDocumentChangeEvent.document event in
+  on_origin_update_content changed_document
+
 let onDidReceiveMessage_listener msg ~(document : TextDocument.t) =
   let cbegin = Int.of_string (Ojs.string_of_js (Ojs.get msg "begin")) in
   let cend = Int.of_string (Ojs.string_of_js (Ojs.get msg "end")) in
-
   let visibleTextEditors =
     List.filter (Vscode.Window.visibleTextEditors ()) ~f:(fun editor ->
         document_eq (TextEditor.document editor) document)
@@ -121,6 +154,98 @@ let onDidReceiveMessage_listener msg ~(document : TextDocument.t) =
   in
   List.iter ~f:apply_selection visibleTextEditors
 
+let get_pp_pp_structure ~document =
+  let str = get_preprocessed_structure (get_pp_path ~document) in
+  Format.asprintf "%a" Pprintast.structure str |> ocamlformat
+
+let open_pp_doc ~document =
+  let open Promise.Syntax in
+  let* doc =
+    let textDocumentOptions =
+      let open Workspace in
+      { language = "ocaml"; content = get_pp_pp_structure ~document }
+    in
+    Workspace.openTextDocument (`Interactive (Some textDocumentOptions))
+  in
+  (*save uri pair to track changes*)
+  set_changes_tracking document doc;
+  let+ _ =
+    Window.showTextDocument ~document:(`TextDocument doc)
+      ~column:ViewColumn.Beside ()
+  in
+  0
+
+let reload_pp_doc ~document =
+  let open Promise.Syntax in
+  let visibleTextEditors = Window.visibleTextEditors () in
+  let firstLine = TextDocument.lineAt ~line:0 document in
+  let lastLine =
+    TextDocument.lineAt ~line:(TextDocument.lineCount document - 1) document
+  in
+
+  let range =
+    Range.makePositions
+      ~start:(TextLine.range firstLine |> Range.start)
+      ~end_:(TextLine.range lastLine |> Range.start)
+  in
+  let origin_uri =
+    match
+      put_keys_into_a_list (doc_string_uri ~document) !origin_to_pp_doc_map
+      (*FIXME: this can fail because origin_to_pp_doc_map is not cleaned on
+        closed document *)
+    with
+    | x :: _ -> x
+    | _ -> failwith "Failed finding the original document URI."
+  in
+  let* original_document =
+    Workspace.openTextDocument (`Uri (Uri.parse origin_uri ()))
+  in
+  let edit = WorkspaceEdit.make () in
+  WorkspaceEdit.replace edit
+    ~uri:(TextDocument.uri document)
+    ~range
+    ~newText:(get_pp_pp_structure ~document:original_document);
+  match
+    List.find
+      ~f:(fun editor -> document_eq (TextEditor.document editor) document)
+      visibleTextEditors
+  with
+  | Some _ ->
+    let+ _ = Workspace.applyEdit ~edit in
+    0
+  | None -> Promise.resolve 1
+
+let manage_choice choice ~document : int Promise.t =
+  let make_p c = Promise.resolve c in
+  let buildCmd () =
+    Sys.command
+      ("cd " ^ project_root_path ~document ^ ";eval $(opam env); dune build")
+  in
+  let rec build_project () =
+    let open Promise.Syntax in
+    if buildCmd () = 0 then
+      if
+        StringMap.existsi !pp_doc_to_changed_origin_map ~f:(fun ~key ~data:_ ->
+            String.equal key (doc_string_uri ~document))
+      then
+        reload_pp_doc ~document
+      else
+        open_pp_doc ~document
+    else
+      let* perror =
+        Window.showErrorMessage
+          ~message:"Building project failed, fix project errors and retry."
+          ~choices:[ ("Retry running `dune build`", 0); ("Abandon", 1) ]
+          ()
+      in
+      match perror with
+      | Some 0 -> build_project ()
+      | _ -> make_p 1
+  in
+  match choice with
+  | Some 0 -> build_project ()
+  | _ -> make_p 1
+
 module Command = struct
   let open_ast_explorer ~uri =
     let _ =
@@ -132,49 +257,6 @@ module Command = struct
           ]
     in
     ()
-
-  let open_pp_doc ~document =
-    let str = get_preprocessed_structure (get_pp_path ~document) in
-    let pp_ast = Format.asprintf "%a" Pprintast.structure str in
-    let open Promise.Syntax in
-    let* doc =
-      let textDocumentOptions =
-        let open Workspace in
-        { language = "ocaml"; content = ocamlformat pp_ast }
-      in
-      Workspace.openTextDocument (`Interactive (Some textDocumentOptions))
-    in
-    (* let* _ = TextDocument.save doc in *)
-    let+ _ =
-      Window.showTextDocument ~document:(`TextDocument doc)
-        ~column:ViewColumn.Beside ()
-    in
-    0
-
-  let manage_choice choice ~document : int Promise.t =
-    let make_p c = Promise.resolve c in
-    let buildCmd () =
-      Sys.command
-        ("cd " ^ project_root_path ~document ^ ";eval $(opam env); dune build")
-    in
-    let rec build_project () =
-      let open Promise.Syntax in
-      if buildCmd () = 0 then
-        open_pp_doc ~document
-      else
-        let* perror =
-          Window.showErrorMessage
-            ~message:"Building project failed, fix project errors and retry."
-            ~choices:[ ("Retry running `dune build`", 0); ("Abandon", 1) ]
-            ()
-        in
-        match perror with
-        | Some 0 -> build_project ()
-        | _ -> make_p 1
-    in
-    match choice with
-    | Some 0 -> build_project ()
-    | _ -> make_p 1
 
   let manage_open_failure ~document =
     let open Promise.Syntax in
@@ -212,7 +294,7 @@ module Command = struct
         let document = TextEditor.document textEditor in
         let position = Vscode.Selection.start selection in
         let webview =
-          match WebViewStore.find !webview_map (document_id document) with
+          match StringMap.find !webview_map (document_id document) with
           | Some wv -> wv
           | None ->
             print_endline "Not found";
@@ -258,7 +340,6 @@ module Command = struct
         let document = TextEditor.document textEditor in
         Promise.make (fun ~resolve:_ ~reject:_ ->
             let _ = open_both_ppx_ast ~document in
-
             ())
       in
       ()
@@ -282,7 +363,6 @@ let _on_hover custom_doc webview =
       ();
     `Value (Some [ hover ])
   in
-
   let provider = HoverProvider.create ~provideHover in
   Vscode.Languages.registerHoverProvider ~selector:(`String "ocaml") ~provider
 
@@ -292,8 +372,7 @@ let resolveCustomTextEditor ~(document : TextDocument.t) ~webviewPanel ~token :
   let webview = WebviewPanel.webview webviewPanel in
   (*persist the webview*)
   webview_map :=
-    WebViewStore.set !webview_map ~key:(document_id document) ~data:webview;
-
+    StringMap.set !webview_map ~key:(document_id document) ~data:webview;
   let options = WebView.options webview in
   WebviewOptions.set_enableScripts options true;
   WebView.set_options webview options;
@@ -309,15 +388,46 @@ let resolveCustomTextEditor ~(document : TextDocument.t) ~webviewPanel ~token :
       ()
   in
   transform_to_ast ~document ~webview;
-
   (* let _ = _on_hover document webview in *)
   CustomTextEditorProvider.ResolvedEditor.t_of_js (Ojs.variable "null")
+
+let manage_changed_origin ~document =
+  let open Promise.Syntax in
+  let* choice =
+    Window.showInformationMessage
+      ~message:
+        "The original document have been changed, would you like to rebuild \
+         the project?"
+      ~choices:[ ("Run `dune build`", 0); ("Cancel", 1) ]
+      ()
+  in
+  manage_choice choice ~document
+
+let onDidChangeActiveTextEditor_listener e =
+  let document = TextEditor.document e in
+  match
+    StringMap.find !pp_doc_to_changed_origin_map (doc_string_uri ~document)
+  with
+  | Some true ->
+    let _ = manage_changed_origin ~document in
+    ()
+  | Some false -> print_endline ("its false" ^ doc_string_uri ~document)
+  | _ -> ()
 
 let register extension =
   let editorProvider =
     `CustomEditorProvider
       (CustomTextEditorProvider.create ~resolveCustomTextEditor)
   in
+  let _ =
+    Window.onDidChangeActiveTextEditor ()
+      ~listener:onDidChangeActiveTextEditor_listener ()
+  in
+  let disposable =
+    Workspace.onDidChangeTextDocument
+      ~listener:onDidChangeTextDocument_listener_pp ()
+  in
+  Vscode.ExtensionContext.subscribe extension ~disposable;
   let disposable =
     Vscode.Window.registerCustomEditorProvider ~viewType:"ast-editor"
       ~provider:editorProvider
