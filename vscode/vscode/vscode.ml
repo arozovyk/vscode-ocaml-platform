@@ -1988,6 +1988,9 @@ module Workspace = struct
   val onDidCloseTextDocument : OnDidCloseTextDocument.t
     [@@js.global "vscode.workspace.onDidCloseTextDocument"]
 
+  val applyEdit : edit:WorkspaceEdit.t -> bool Promise.t
+    [@@js.global "vscode.workspace.applyEdit"]
+
   val asRelativePath :
     pathOrUri:([ `String of string | `Uri of Uri.t ][@js.union]) -> string
     [@@js.global "vscode.workspace.asRelativePath"]
@@ -2469,7 +2472,8 @@ module rec WebviewPanel : sig
 
   val dispose : t -> Js.Any.t
 
-  val reveal : t -> ?preserveFocus:bool -> ?viewColumn:ViewColumn.t -> unit ->unit
+  val reveal :
+    t -> ?preserveFocus:bool -> ?viewColumn:ViewColumn.t -> unit -> unit
 
   val create :
        onDidChangeViewState:WebviewPanelOnDidChangeViewStateEvent.t Event.t
@@ -2540,7 +2544,8 @@ end = struct
 
   val dispose : t -> Js.Any.t [@@js.call]
 
-  val reveal : t -> ?preserveFocus:bool -> ?viewColumn:ViewColumn.t ->unit -> unit
+  val reveal :
+    t -> ?preserveFocus:bool -> ?viewColumn:ViewColumn.t -> unit -> unit
     [@@js.call]
 
   val create :
@@ -2554,7 +2559,7 @@ end = struct
     -> visible:bool
     -> webview:WebView.t
     -> dispose:Js.Any.t
-    -> reveal:(?preserveFocus:bool -> ?viewColumn:ViewColumn.t ->unit -> unit)
+    -> reveal:(?preserveFocus:bool -> ?viewColumn:ViewColumn.t -> unit -> unit)
     -> t
     [@@js.builder]
 end

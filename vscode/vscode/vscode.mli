@@ -1638,6 +1638,8 @@ module Workspace : sig
 
   val onDidChangeTextDocument : TextDocumentChangeEvent.t Event.t
 
+  val applyEdit : edit:WorkspaceEdit.t -> bool Promise.t
+
   val asRelativePath :
     pathOrUri:([ `String of string | `Uri of Uri.t ][@js.union]) -> string
 
@@ -2025,7 +2027,8 @@ module rec WebviewPanel : sig
 
   val dispose : t -> Js.Any.t
 
-  val reveal : t -> ?preserveFocus:bool -> ?viewColumn:ViewColumn.t ->unit -> unit
+  val reveal :
+    t -> ?preserveFocus:bool -> ?viewColumn:ViewColumn.t -> unit -> unit
 
   val create :
        onDidChangeViewState:WebviewPanelOnDidChangeViewStateEvent.t Event.t
@@ -2038,7 +2041,7 @@ module rec WebviewPanel : sig
     -> visible:bool
     -> webview:WebView.t
     -> dispose:Js.Any.t
-    -> reveal:(?preserveFocus:bool -> ?viewColumn:ViewColumn.t ->unit -> unit)
+    -> reveal:(?preserveFocus:bool -> ?viewColumn:ViewColumn.t -> unit -> unit)
     -> t
 end
 
