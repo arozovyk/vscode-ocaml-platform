@@ -3,7 +3,7 @@
   "displayName": "OCaml Platform",
   "description": "Official OCaml Support from OCamlLabs",
   "license": "MIT",
-  "version": "1.8.1",
+  "version": "1.8.2",
   "publisher": "ocamllabs",
   "repository": {
     "type": "git",
@@ -910,6 +910,6 @@
     "ovsx": "0.1.0-next.97d460c",
     "prettier": "2.2.1",
     "vsce": "1.87.0",
-    "vscode-test": "1.5.1"
+    "vscode-test": "1.5.2"
   }
 }
