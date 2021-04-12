@@ -8,13 +8,28 @@ let number_of_visible_webviews = ref 0
 
 let pp_doc_to_changed_origin_map = ref StringMap.empty
 
+(*TODO?: change it to (string, string list) Map (and adjust corresponding code)
+  if there is a need to have multiple pp buffers open at the same time *)
 let origin_to_pp_doc_map = ref StringMap.empty
+(*for debugging purposes*)
+let print_state () =
+  print_endline "State: ";
+  StringMap.iteri !pp_doc_to_changed_origin_map ~f:(fun ~key ~data ->
+      print_string ("(" ^ key ^ "," ^ Bool.to_string data ^ ")"));
+  print_endline "";
+  StringMap.iteri !origin_to_pp_doc_map ~f:(fun ~key ~data ->
+      print_string ("(" ^ key ^ "," ^ data ^ ")"));
+  print_endline ""
 
 let doc_string_uri ~document = Uri.toString (TextDocument.uri document) ()
 
 let put_keys_into_a_list data_serached map =
   StringMap.filteri ~f:(fun ~key:_ ~data -> String.equal data_serached data) map
   |> StringMap.to_alist |> List.unzip |> fst
+
+let remove_keys_by_data map d =
+  map :=
+    StringMap.filteri ~f:(fun ~key:_ ~data -> not (String.equal data d)) !map
 
 let set_changes_tracking origin pp_doc =
   origin_to_pp_doc_map :=
@@ -434,6 +449,38 @@ let onDidChangeActiveTextEditor_listener e =
   else
     ()
 
+let close_visible_editors_by_uri uri =
+  let f e =
+    let visibleDocument = TextEditor.document e in
+    let open Promise.Syntax in
+    if String.equal uri (doc_string_uri ~document:visibleDocument) then
+      let _ =
+        let+ _ =
+          Window.showTextDocument ~document:(`TextDocument visibleDocument) ()
+        in
+        Vscode.Commands.executeCommand
+          ~command:"workbench.action.closeActiveEditor" ~args:[]
+      in
+      ()
+    else
+      ()
+  in
+  Window.visibleTextEditors () |> List.iter ~f
+
+let onDidCloseTextDocument_listener (document : TextDocument.t) =
+  let origin_uri = doc_string_uri ~document in
+  match StringMap.find !origin_to_pp_doc_map origin_uri with
+  | Some uri ->
+    pp_doc_to_changed_origin_map :=
+      StringMap.remove !pp_doc_to_changed_origin_map uri;
+    origin_to_pp_doc_map := StringMap.remove !origin_to_pp_doc_map origin_uri;
+    (* close corresponding pp buffers to avoid confusion *)
+    close_visible_editors_by_uri uri
+  | None ->
+    remove_keys_by_data origin_to_pp_doc_map origin_uri;
+    pp_doc_to_changed_origin_map :=
+      StringMap.remove !pp_doc_to_changed_origin_map origin_uri
+
 let register extension =
   let editorProvider =
     `CustomEditorProvider
@@ -444,8 +491,13 @@ let register extension =
       ~listener:onDidChangeActiveTextEditor_listener ()
   in
   let disposable =
-    Workspace.onDidSaveTextDocument
-      ~listener:onDidSaveTextDocument_listener_pp ()
+    Workspace.onDidSaveTextDocument ~listener:onDidSaveTextDocument_listener_pp
+      ()
+  in
+  Vscode.ExtensionContext.subscribe extension ~disposable;
+  let disposable =
+    Workspace.onDidCloseTextDocument ~listener:onDidCloseTextDocument_listener
+      ()
   in
   Vscode.ExtensionContext.subscribe extension ~disposable;
   let disposable =
