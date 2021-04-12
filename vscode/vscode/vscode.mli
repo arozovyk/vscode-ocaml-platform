@@ -1671,6 +1671,8 @@ module Workspace : sig
 
   val onDidCloseTextDocument : TextDocument.t Event.t
 
+  val onDidSaveTextDocument : TextDocument.t Event.t
+
   val getConfiguration :
        ?section:string
     -> ?scope:ConfigurationScope.t

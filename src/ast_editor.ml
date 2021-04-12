@@ -133,9 +133,8 @@ let onDidChangeTextDocument_listener event ~(document : TextDocument.t)
   ) else
     ()
 
-let onDidChangeTextDocument_listener_pp event =
-  let changed_document = TextDocumentChangeEvent.document event in
-  on_origin_update_content changed_document
+let onDidSaveTextDocument_listener_pp document =
+  on_origin_update_content document
 
 let onDidReceiveMessage_listener msg ~(document : TextDocument.t) =
   let cbegin = Int.of_string (Ojs.string_of_js (Ojs.get msg "begin")) in
@@ -211,7 +210,10 @@ let reload_pp_doc ~document =
       visibleTextEditors
   with
   | Some _ ->
-    let+ _ = Workspace.applyEdit ~edit in
+    let+ _ =
+      set_origin_changed ~key:(doc_string_uri ~document) ~data:false;
+      Workspace.applyEdit ~edit
+    in
     0
   | None -> Promise.resolve 1
 
@@ -224,6 +226,7 @@ let manage_choice choice ~document : int Promise.t =
   let rec build_project () =
     let open Promise.Syntax in
     if buildCmd () = 0 then
+      (* FIXME: remove entries on document close *)
       if
         StringMap.existsi !pp_doc_to_changed_origin_map ~f:(fun ~key ~data:_ ->
             String.equal key (doc_string_uri ~document))
@@ -403,16 +406,33 @@ let manage_changed_origin ~document =
   in
   manage_choice choice ~document
 
+let _onDidSaveTextDocument_listener_pp document =
+  let _ =
+    let origin_uri = doc_string_uri ~document in
+    match StringMap.find !origin_to_pp_doc_map origin_uri with
+    | Some pp_uri ->
+      let open Promise.Syntax in
+      let* original_document =
+        Workspace.openTextDocument (`Uri (Uri.parse pp_uri ()))
+      in
+      manage_changed_origin ~document:original_document
+    | None -> Promise.resolve 1
+  in
+  ()
+
 let onDidChangeActiveTextEditor_listener e =
-  let document = TextEditor.document e in
-  match
-    StringMap.find !pp_doc_to_changed_origin_map (doc_string_uri ~document)
-  with
-  | Some true ->
-    let _ = manage_changed_origin ~document in
+  if not (TextEditor.t_to_js e |> Ojs.is_null) then
+    let document = TextEditor.document e in
+    match
+      StringMap.find !pp_doc_to_changed_origin_map (doc_string_uri ~document)
+    with
+    | Some true ->
+      let _ = manage_changed_origin ~document in
+      ()
+    | Some false -> print_endline ("its false" ^ doc_string_uri ~document)
+    | _ -> ()
+  else
     ()
-  | Some false -> print_endline ("its false" ^ doc_string_uri ~document)
-  | _ -> ()
 
 let register extension =
   let editorProvider =
@@ -424,8 +444,8 @@ let register extension =
       ~listener:onDidChangeActiveTextEditor_listener ()
   in
   let disposable =
-    Workspace.onDidChangeTextDocument
-      ~listener:onDidChangeTextDocument_listener_pp ()
+    Workspace.onDidSaveTextDocument
+      ~listener:onDidSaveTextDocument_listener_pp ()
   in
   Vscode.ExtensionContext.subscribe extension ~disposable;
   let disposable =

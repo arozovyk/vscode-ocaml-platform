@@ -1983,6 +1983,11 @@ module Workspace = struct
   val onDidOpenTextDocument : OnDidOpenTextDocument.t
     [@@js.global "vscode.workspace.onDidOpenTextDocument"]
 
+  module OnDidSaveTextDocument = Event.Make (TextDocument)
+
+  val onDidSaveTextDocument : OnDidSaveTextDocument.t
+    [@@js.global "vscode.workspace.onDidSaveTextDocument"]
+
   module OnDidCloseTextDocument = Event.Make (TextDocument)
 
   val onDidCloseTextDocument : OnDidCloseTextDocument.t
