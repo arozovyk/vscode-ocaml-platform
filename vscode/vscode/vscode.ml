@@ -1950,6 +1950,25 @@ module TextDocumentChangeEvent = struct
   val document : t -> TextDocument.t [@@js.get]
 end
 
+module TextDocumentContentProvider = struct
+  include Interface.Make ()
+
+  module OnDidChange = Event.Make (Uri)
+
+  val onDidChange : t -> OnDidChange.t [@@js.get]
+
+  val provideTextDocumentContent :
+    t -> uri:Uri.t -> token:CancellationToken.t -> string ProviderResult.t
+    [@@js.call]
+
+  val create :
+       ?onDidChange:OnDidChange.t
+    -> provideTextDocumentContent:
+         (uri:Uri.t -> token:CancellationToken.t -> string ProviderResult.t)
+    -> t
+    [@@js.builder]
+end
+
 module Workspace = struct
   val workspaceFolders : unit -> WorkspaceFolder.t maybe_list
     [@@js.get "vscode.workspace.workspaceFolders"]
@@ -2021,15 +2040,19 @@ module Workspace = struct
     ; content : string
     }
   [@@js]
-
+ 
   val openTextDocument :
-       ([ `Uri of Uri.t
+       ([ `Uri of Uri.t (*FIXME?*)
         | `Filename of string
         | `Interactive of textDocumentOptions or_undefined
         ]
        [@js.union])
     -> TextDocument.t Promise.t
     [@@js.global "vscode.workspace.openTextDocument"]
+
+  val registerTextDocumentContentProvider :
+    scheme:string -> provider:TextDocumentContentProvider.t -> Disposable.t
+    [@@js.global "vscode.workspace.registerTextDocumentContentProvider"]
 end
 
 module TreeItemCollapsibleState = struct
