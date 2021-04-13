@@ -12,7 +12,7 @@ let pp_doc_to_changed_origin_map = ref StringMap.empty
   if there is a need to have multiple pp buffers open at the same time *)
 let origin_to_pp_doc_map = ref StringMap.empty
 (*for debugging purposes*)
-let print_state () =
+let _print_state () =
   print_endline "State: ";
   StringMap.iteri !pp_doc_to_changed_origin_map ~f:(fun ~key ~data ->
       print_string ("(" ^ key ^ "," ^ Bool.to_string data ^ ")"));
@@ -175,11 +175,14 @@ let get_pp_pp_structure ~document =
 let open_pp_doc ~document =
   let open Promise.Syntax in
   let* doc =
-    let textDocumentOptions =
-      let open Workspace in
-      { language = "ocaml"; content = get_pp_pp_structure ~document }
-    in
-    Workspace.openTextDocument (`Interactive (Some textDocumentOptions))
+    Workspace.openTextDocument
+      (`Uri
+        (Uri.parse
+           ( "post-ppx: "
+           ^ TextDocument.fileName document
+           ^ "?"
+           ^ get_pp_pp_structure ~document )
+           ()))
   in
   (*save uri pair to track changes*)
   set_changes_tracking document doc;
@@ -340,9 +343,8 @@ module Command = struct
 
   let _show_preprocessed_document =
     let handler _ ~textEditor ~edit:_ ~args:_ =
+      let document = TextEditor.document textEditor in
       let (_ : unit Promise.t) =
-        let document = TextEditor.document textEditor in
-
         Promise.make (fun ~resolve:_ ~reject:_ ->
             let _ = open_preprocessed_doc_to_the_side ~document in
             ())
@@ -481,6 +483,15 @@ let onDidCloseTextDocument_listener (document : TextDocument.t) =
     pp_doc_to_changed_origin_map :=
       StringMap.remove !pp_doc_to_changed_origin_map origin_uri
 
+let text_document_content_provider_ppx =
+  let module EventEmitter = EventEmitter.Make (Uri) in
+  let event_emitter = EventEmitter.make () in
+  let onDidChange = EventEmitter.event event_emitter in
+  let provideTextDocumentContent ~uri ~token:_ : string ProviderResult.t =
+    `Value (Some (Uri.query uri))
+  in
+  TextDocumentContentProvider.create ~provideTextDocumentContent ~onDidChange
+
 let register extension =
   let editorProvider =
     `CustomEditorProvider
@@ -503,5 +514,10 @@ let register extension =
   let disposable =
     Vscode.Window.registerCustomEditorProvider ~viewType:"ast-editor"
       ~provider:editorProvider
+  in
+  Vscode.ExtensionContext.subscribe extension ~disposable;
+  let disposable =
+    Vscode.Workspace.registerTextDocumentContentProvider ~scheme:"post-ppx"
+      ~provider:text_document_content_provider_ppx
   in
   Vscode.ExtensionContext.subscribe extension ~disposable
