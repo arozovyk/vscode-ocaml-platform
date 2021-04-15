@@ -253,7 +253,7 @@
       ,
       {
         "command": "ocaml.reveal-ast-node",
-        "key": "Shift+Enter+a",
+        "key": "Shift+Ctrl+D",
         "when": "editorTextFocus && editorLangId == ocaml || editorTextFocus && editorLangId == ocaml.interface || editorTextFocus && editorLangId == reason || editorTextFocus && editorLangId == ocaml.ocamllex || editorTextFocus && editorLangId == ocaml.menhir"
       }
     ],
