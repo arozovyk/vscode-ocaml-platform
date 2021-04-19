@@ -21,25 +21,19 @@ let entry_exists k d =
   StringMap.existsi !origin_to_pp_doc_map ~f:(fun ~key ~data ->
       String.equal d data && String.equal k key)
 
-(*for debugging purposes*)
-let _print_state () =
-  print_endline "State: ";
-  StringMap.iteri !pp_doc_to_changed_origin_map ~f:(fun ~key ~data ->
-      print_string ("(" ^ key ^ "," ^ Bool.to_string data ^ ")"));
-  print_endline "";
-  StringMap.iteri !origin_to_pp_doc_map ~f:(fun ~key ~data ->
-      print_string ("(" ^ key ^ "," ^ data ^ ")"));
-  print_endline ""
-
-let doc_string_uri ~document = Uri.toString (TextDocument.uri document) ()
+let remove_keys_by_data map d =
+  map :=
+    StringMap.filteri ~f:(fun ~key:_ ~data -> not (String.equal data d)) !map
 
 let put_keys_into_a_list data_serached map =
   StringMap.filteri ~f:(fun ~key:_ ~data -> String.equal data_serached data) map
   |> StringMap.to_alist |> List.unzip |> fst
 
-let remove_keys_by_data map d =
-  map :=
-    StringMap.filteri ~f:(fun ~key:_ ~data -> not (String.equal data d)) !map
+let doc_string_uri ~document = Uri.toString (TextDocument.uri document) ()
+
+let set_origin_changed ~data ~key =
+  pp_doc_to_changed_origin_map :=
+    StringMap.set !pp_doc_to_changed_origin_map ~key ~data
 
 let set_changes_tracking origin pp_doc =
   origin_to_pp_doc_map :=
@@ -52,10 +46,6 @@ let set_changes_tracking origin pp_doc =
       ~key:(doc_string_uri ~document:pp_doc)
       ~data:false
 
-let set_origin_changed ~data ~key =
-  pp_doc_to_changed_origin_map :=
-    StringMap.set !pp_doc_to_changed_origin_map ~key ~data
-
 let on_origin_update_content changed_document =
   match
     StringMap.find !origin_to_pp_doc_map
@@ -63,6 +53,16 @@ let on_origin_update_content changed_document =
   with
   | Some key -> set_origin_changed ~key ~data:true
   | None -> ()
+
+(*for debugging purposes*)
+let _print_state () =
+  print_endline "State: ";
+  StringMap.iteri !pp_doc_to_changed_origin_map ~f:(fun ~key ~data ->
+      print_string ("(" ^ key ^ "," ^ Bool.to_string data ^ ")"));
+  print_endline "";
+  StringMap.iteri !origin_to_pp_doc_map ~f:(fun ~key ~data ->
+      print_string ("(" ^ key ^ "," ^ data ^ ")"));
+  print_endline ""
 
 (*doesnt work because of the bug where the Webview doesn't increment the
   totalColumnCount*)
@@ -98,8 +98,6 @@ let document_eq a b =
   String.equal
     (Uri.toString (TextDocument.uri a) ())
     (Uri.toString (TextDocument.uri b) ())
-
-let document_id document = Uri.toString (TextDocument.uri document) ()
 
 let get_html_for_WebView_from_file () =
   let filename = Node.__dirname () ^ "/../astexplorer/dist/index.html" in
@@ -304,12 +302,26 @@ module Command = struct
         let selection = Vscode.TextEditor.selection textEditor in
         let document = TextEditor.document textEditor in
         let position = Vscode.Selection.start selection in
+
         let webview =
-          match StringMap.find !webview_map (document_id document) with
+          match StringMap.find !webview_map (doc_string_uri ~document) with
           | Some wv -> wv
-          | None ->
-            failwith "Webview wasnt found"
+          | None -> (
+            match
+              put_keys_into_a_list (doc_string_uri ~document)
+                !origin_to_pp_doc_map
+            with
+            | [ k ] -> (
+              match StringMap.find !webview_map k with
+              | Some wv ->
+                if !original_mode then
+                  failwith "Can't reveal custom ast in the origianl mode"
+                else
+                  wv
+              | None -> failwith "No webview found " )
+            | _ -> failwith "No origin uri found" )
         in
+
         let offset = TextDocument.offsetAt document ~position in
         Promise.make (fun ~resolve:_ ~reject:_ ->
             send_msg "focus" (Ojs.int_to_js offset) ~webview)
@@ -379,13 +391,12 @@ let resolveCustomTextEditor ~(document : TextDocument.t) ~webviewPanel ~token :
   let webview = WebviewPanel.webview webviewPanel in
   let _ =
     WebviewPanel.onDidDispose webviewPanel
-      ~listener:(fun () ->
-        original_mode := true)
+      ~listener:(fun () -> original_mode := true)
       ()
   in
   (*persist the webview*)
   webview_map :=
-    StringMap.set !webview_map ~key:(document_id document) ~data:webview;
+    StringMap.set !webview_map ~key:(doc_string_uri ~document) ~data:webview;
   let options = WebView.options webview in
   WebviewOptions.set_enableScripts options true;
   WebView.set_options webview options;
