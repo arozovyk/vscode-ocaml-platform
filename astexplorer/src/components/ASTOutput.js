@@ -2,6 +2,7 @@ import PropTypes from 'prop-types';
 import React from 'react';
 import cx from '../utils/classnames.js';
 import visualizations from './visualization';
+import { vscode } from '../vscode'
 
 const { useState } = React;
 
@@ -25,7 +26,7 @@ export default function ASTOutput({ parseResult = {}, ppParseResult = {}, positi
       {
         React.createElement(
           visualizations[0],
-          { parseResult: (selectedOutput == 0 ? parseResult : ppParseResult), position },
+          { parseResult: (selectedOutput == 0 ? parseResult : ppParseResult), position, selectedOutput },
         )
       }
     </ErrorBoundary>
@@ -36,7 +37,12 @@ export default function ASTOutput({ parseResult = {}, ppParseResult = {}, positi
       <button
         key={index}
         value={index}
-        onClick={event => setSelectedOutput(event.target.value)}
+        onClick={event => {
+          setSelectedOutput(event.target.value);
+          vscode.postMessage({
+            selectedOutput: event.target.value.toString()
+          });
+        }}
         className={cx({
           active: selectedOutput == index,
         })}>
