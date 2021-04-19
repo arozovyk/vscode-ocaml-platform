@@ -6,11 +6,21 @@ module StringMap = Map.Make (String)
   proper webview store mechanism*)
 let number_of_visible_webviews = ref 0
 
+(*Indicates the output mode in order to highlight the right document*)
+let original_mode = ref true
+
 let pp_doc_to_changed_origin_map = ref StringMap.empty
 
-(*TODO?: change it to (string, string list) Map (and adjust corresponding code)
-  if there is a need to have multiple pp buffers open at the same time *)
+let get_pp_pp_structure ~document =
+  let str = get_preprocessed_structure (get_pp_path ~document) in
+  Format.asprintf "%a" Pprintast.structure str |> ocamlformat
+
 let origin_to_pp_doc_map = ref StringMap.empty
+
+let entry_exists k d =
+  StringMap.existsi !origin_to_pp_doc_map ~f:(fun ~key ~data ->
+      String.equal d data && String.equal k key)
+
 (*for debugging purposes*)
 let _print_state () =
   print_endline "State: ";
@@ -101,76 +111,56 @@ let transform_to_ast ~(document : TextDocument.t) ~(webview : WebView.t) =
   let pp_path = get_pp_path ~document in
   let pp_value =
     if pp_exists pp_path then
-      let ppstruct = get_preprocessed_structure (get_pp_path ~document) in
-      Dumpast.from_structure ppstruct
+      (*The following would return the structure with ghost_locs*)
+      (* let ppstruct = get_preprocessed_structure (get_pp_path ~document) in
+         Dumpast.from_structure ppstruct *)
+      (* Use only the actual locations while waiting on the bug fix where
+         reparsing returns two different ASTs, most likely due to the AST
+         version difference (resulting from the use of OMP with Pprintast ?) *)
+      Dumpast.transform (get_pp_pp_structure ~document)
     else
       null
   in
   let astpair = object_ [ ("ast", value); ("pp_ast", pp_value) ] in
   send_msg "parse" (Jsonoo.t_to_js astpair) ~webview
 
-let savedWebviewPanels = ref []
-
-let to_str col = ViewColumn.t_to_js col |> Ojs.int_of_js |> Int.to_string
-
-let updateSavedWebViews ~(document : TextDocument.t) =
-  List.iter !savedWebviewPanels ~f:(fun wvp ->
-      let webview = WebviewPanel.webview !wvp in
-      transform_to_ast ~document ~webview)
-
-let _showNewWebviewPanel ~document () =
-  let webviewpanel =
-    Window.createWebviewPanel ~viewType:"ocaml" ~title:"Ast explorer"
-      ~showOptions:(_rightmost_column ())
-  in
-  let webview = WebviewPanel.webview webviewpanel in
-  WebView.set_html webview (get_html_for_WebView_from_file ());
-  let options = WebView.options webview in
-  WebviewOptions.set_enableScripts options true;
-  WebView.set_options webview options;
-  savedWebviewPanels := ref webviewpanel :: !savedWebviewPanels;
-  transform_to_ast ~document ~webview;
-  let listener () =
-    number_of_visible_webviews := !number_of_visible_webviews - 1
-  in
-  let _ = WebviewPanel.onDidDispose webviewpanel ~listener () in
-  let column = _rightmost_column () in
-  print_endline ("Column webview  : " ^ to_str column);
-  WebviewPanel.reveal webviewpanel ~preserveFocus:true ();
-  number_of_visible_webviews := !number_of_visible_webviews + 1
-
 let onDidChangeTextDocument_listener event ~(document : TextDocument.t)
     ~(webview : WebView.t) =
   let changed_document = TextDocumentChangeEvent.document event in
-  if document_eq document changed_document then (
-    transform_to_ast ~document ~webview;
-    updateSavedWebViews ~document
-  ) else
+  if document_eq document changed_document then
+    transform_to_ast ~document ~webview
+  else
     ()
 
 let onDidSaveTextDocument_listener_pp document =
   on_origin_update_content document
 
 let onDidReceiveMessage_listener msg ~(document : TextDocument.t) =
-  let cbegin = Int.of_string (Ojs.string_of_js (Ojs.get msg "begin")) in
-  let cend = Int.of_string (Ojs.string_of_js (Ojs.get msg "end")) in
-  let visibleTextEditors =
-    List.filter (Vscode.Window.visibleTextEditors ()) ~f:(fun editor ->
-        document_eq (TextEditor.document editor) document)
-  in
-  let apply_selection editor =
-    let anchor = Vscode.TextDocument.positionAt document ~offset:cbegin in
-    let active = Vscode.TextDocument.positionAt document ~offset:cend in
-    TextEditor.revealRange editor
-      ~range:(Range.makePositions ~start:anchor ~end_:active)
-      ();
-    TextEditor.set_selection editor (Selection.makePositions ~anchor ~active)
-  in
-  List.iter ~f:apply_selection visibleTextEditors
-
-let get_pp_pp_structure ~document =
-  let str = get_preprocessed_structure (get_pp_path ~document) in
-  Format.asprintf "%a" Pprintast.structure str |> ocamlformat
+  if Ojs.has_property msg "selectedOutput" then
+    original_mode := not !original_mode
+  else
+    let cbegin = Int.of_string (Ojs.string_of_js (Ojs.get msg "begin")) in
+    let cend = Int.of_string (Ojs.string_of_js (Ojs.get msg "end")) in
+    let f editor =
+      let visible_doc = TextEditor.document editor in
+      (!original_mode && document_eq document visible_doc)
+      || (not !original_mode)
+         && entry_exists (doc_string_uri ~document)
+              (doc_string_uri ~document:visible_doc)
+    in
+    let visibleTextEditors =
+      List.filter (Vscode.Window.visibleTextEditors ()) ~f
+    in
+    let apply_selection editor =
+      let document = TextEditor.document editor in
+      let anchor = Vscode.TextDocument.positionAt document ~offset:cbegin in
+      let active = Vscode.TextDocument.positionAt document ~offset:cend in
+      TextEditor.revealRange editor
+        ~range:(Range.makePositions ~start:anchor ~end_:active)
+        ();
+      TextEditor.set_selection editor (Selection.makePositions ~anchor ~active)
+    in
+    List.iter ~f:apply_selection visibleTextEditors
 
 let open_pp_doc ~document =
   let open Promise.Syntax in
@@ -318,7 +308,6 @@ module Command = struct
           match StringMap.find !webview_map (document_id document) with
           | Some wv -> wv
           | None ->
-            print_endline "Not found";
             failwith "Webview wasnt found"
         in
         let offset = TextDocument.offsetAt document ~position in
@@ -370,9 +359,7 @@ end
 
 let _on_hover custom_doc webview =
   let hover =
-    Hover.make
-      ~contents:
-        (`MarkdownString (MarkdownString.make ~value:"hover is working" ()))
+    Hover.make ~contents:(`MarkdownString (MarkdownString.make ~value:"" ()))
   in
   let provideHover ~(document : TextDocument.t) ~(position : Position.t)
       ~token:_ =
@@ -390,6 +377,12 @@ let resolveCustomTextEditor ~(document : TextDocument.t) ~webviewPanel ~token :
     CustomTextEditorProvider.ResolvedEditor.t =
   let _ = token in
   let webview = WebviewPanel.webview webviewPanel in
+  let _ =
+    WebviewPanel.onDidDispose webviewPanel
+      ~listener:(fun () ->
+        original_mode := true)
+      ()
+  in
   (*persist the webview*)
   webview_map :=
     StringMap.set !webview_map ~key:(document_id document) ~data:webview;
@@ -446,7 +439,6 @@ let onDidChangeActiveTextEditor_listener e =
     | Some true ->
       let _ = manage_changed_origin ~document in
       ()
-    | Some false -> print_endline ("its false" ^ doc_string_uri ~document)
     | _ -> ()
   else
     ()
