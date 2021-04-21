@@ -1,55 +1,47 @@
 open Import
 open Ppx_utils
-module StringMap = Map.Make (String)
-
-(*TODO: decreaste the number on disposed webviews, and replace the function with
-  proper webview store mechanism*)
-let number_of_visible_webviews = ref 0
+module Map = Map.Make (String)
 
 (*Indicates the output mode in order to highlight the right document*)
 let original_mode = ref true
 
-let pp_doc_to_changed_origin_map = ref StringMap.empty
-
-let get_pp_pp_structure ~document =
-  let str = get_preprocessed_structure (get_pp_path ~document) in
-  Format.asprintf "%a" Pprintast.structure str |> ocamlformat
-
-let origin_to_pp_doc_map = ref StringMap.empty
-
-let entry_exists k d =
-  StringMap.existsi !origin_to_pp_doc_map ~f:(fun ~key ~data ->
-      String.equal d data && String.equal k key)
-
-let remove_keys_by_data map d =
-  map :=
-    StringMap.filteri ~f:(fun ~key:_ ~data -> not (String.equal data d)) !map
-
-let put_keys_into_a_list data_serached map =
-  StringMap.filteri ~f:(fun ~key:_ ~data -> String.equal data_serached data) map
-  |> StringMap.to_alist |> List.unzip |> fst
+let webview_map = ref Map.empty
 
 let doc_string_uri ~document = Uri.toString (TextDocument.uri document) ()
 
+let pp_doc_to_changed_origin_map = ref Map.empty
+
+let origin_to_pp_doc_map = ref Map.empty
+
+let entry_exists k d =
+  Map.existsi !origin_to_pp_doc_map ~f:(fun ~key ~data ->
+      String.equal d data && String.equal k key)
+
+let remove_keys_by_data map d =
+  map := Map.filteri ~f:(fun ~key:_ ~data -> not (String.equal data d)) !map
+
+let put_keys_into_a_list data_serached map =
+  Map.filteri ~f:(fun ~key:_ ~data -> String.equal data_serached data) map
+  |> Map.to_alist |> List.unzip |> fst
+
 let set_origin_changed ~data ~key =
   pp_doc_to_changed_origin_map :=
-    StringMap.set !pp_doc_to_changed_origin_map ~key ~data
+    Map.set !pp_doc_to_changed_origin_map ~key ~data
 
 let set_changes_tracking origin pp_doc =
   origin_to_pp_doc_map :=
-    StringMap.set !origin_to_pp_doc_map
+    Map.set !origin_to_pp_doc_map
       ~key:(doc_string_uri ~document:origin)
       ~data:(doc_string_uri ~document:pp_doc);
   pp_doc_to_changed_origin_map :=
-    StringMap.set
+    Map.set
       !pp_doc_to_changed_origin_map
       ~key:(doc_string_uri ~document:pp_doc)
       ~data:false
 
 let on_origin_update_content changed_document =
   match
-    StringMap.find !origin_to_pp_doc_map
-      (doc_string_uri ~document:changed_document)
+    Map.find !origin_to_pp_doc_map (doc_string_uri ~document:changed_document)
   with
   | Some key -> set_origin_changed ~key ~data:true
   | None -> ()
@@ -57,35 +49,12 @@ let on_origin_update_content changed_document =
 (*for debugging purposes*)
 let _print_state () =
   print_endline "State: ";
-  StringMap.iteri !pp_doc_to_changed_origin_map ~f:(fun ~key ~data ->
+  Map.iteri !pp_doc_to_changed_origin_map ~f:(fun ~key ~data ->
       print_string ("(" ^ key ^ "," ^ Bool.to_string data ^ ")"));
   print_endline "";
-  StringMap.iteri !origin_to_pp_doc_map ~f:(fun ~key ~data ->
+  Map.iteri !origin_to_pp_doc_map ~f:(fun ~key ~data ->
       print_string ("(" ^ key ^ "," ^ data ^ ")"));
   print_endline ""
-
-(*doesnt work because of the bug where the Webview doesn't increment the
-  totalColumnCount*)
-let _rightmost_column () =
-  let open ViewColumn in
-  let to_int col = t_to_js col |> Ojs.int_of_js in
-  let of_int i = Ojs.int_to_js i |> t_of_js in
-  let visibleTextEditors = Window.visibleTextEditors () in
-  let iCol =
-    ( List.fold visibleTextEditors ~init:One ~f:(fun acc editor ->
-          let editorColumn =
-            match TextEditor.viewColumn editor with
-            | Some column -> column
-            | None -> One
-          in
-          max (to_int acc) (to_int editorColumn) |> of_int)
-    |> to_int )
-    + 1
-    + !number_of_visible_webviews
-  in
-  of_int iCol
-
-let webview_map = ref StringMap.empty
 
 let send_msg t value ~(webview : WebView.t) =
   let msg = Ojs.empty_obj () in
@@ -103,62 +72,31 @@ let get_html_for_WebView_from_file () =
   let filename = Node.__dirname () ^ "/../astexplorer/dist/index.html" in
   In_channel.read_all filename
 
+(* let write_to_file content path = let tmp_path = path in let oc =
+   Out_channel.create tmp_path in Printf.fprintf oc "%s\n" content;
+   Out_channel.close oc *)
+
 let transform_to_ast ~(document : TextDocument.t) ~(webview : WebView.t) =
   let open Jsonoo.Encode in
-  let value = TextDocument.getText document () |> Dumpast.transform in
+  let origin_json = TextDocument.getText document () |> Dumpast.transform in
   let pp_path = get_pp_path ~document in
   let pp_value =
     if pp_exists pp_path then
       (*The following would return the structure with ghost_locs*)
       (* let ppstruct = get_preprocessed_structure (get_pp_path ~document) in
-         Dumpast.from_structure ppstruct *)
-      (* Use only the actual locations while waiting on the bug fix where
-         reparsing returns two different ASTs, most likely due to the AST
-         version difference (resulting from the use of OMP with Pprintast ?) *)
-      Dumpast.transform (get_pp_pp_structure ~document)
+         let ppml_json = Dumpast.from_structure ppstruct in *)
+      let reparsed_json = Dumpast.transform (get_pp_pp_structure ~document) in
+      (* write_to_file (Jsonoo.stringify ppml_json) "/tmp/ppml"; write_to_file
+         (Jsonoo.stringify reparsed_json) "/tmp/reparsed"; *)
+      reparsed_json
+    (* Use only the actual locations while waiting on the bug fix where
+       reparsing returns two different ASTs, most likely due to the AST version
+       difference (resulting from the use of OMP with Pprintast ?) *)
     else
       null
   in
-  let astpair = object_ [ ("ast", value); ("pp_ast", pp_value) ] in
+  let astpair = object_ [ ("ast", origin_json); ("pp_ast", pp_value) ] in
   send_msg "parse" (Jsonoo.t_to_js astpair) ~webview
-
-let onDidChangeTextDocument_listener event ~(document : TextDocument.t)
-    ~(webview : WebView.t) =
-  let changed_document = TextDocumentChangeEvent.document event in
-  if document_eq document changed_document then
-    transform_to_ast ~document ~webview
-  else
-    ()
-
-let onDidSaveTextDocument_listener_pp document =
-  on_origin_update_content document
-
-let onDidReceiveMessage_listener msg ~(document : TextDocument.t) =
-  if Ojs.has_property msg "selectedOutput" then
-    original_mode := not !original_mode
-  else
-    let cbegin = Int.of_string (Ojs.string_of_js (Ojs.get msg "begin")) in
-    let cend = Int.of_string (Ojs.string_of_js (Ojs.get msg "end")) in
-    let f editor =
-      let visible_doc = TextEditor.document editor in
-      (!original_mode && document_eq document visible_doc)
-      || (not !original_mode)
-         && entry_exists (doc_string_uri ~document)
-              (doc_string_uri ~document:visible_doc)
-    in
-    let visibleTextEditors =
-      List.filter (Vscode.Window.visibleTextEditors ()) ~f
-    in
-    let apply_selection editor =
-      let document = TextEditor.document editor in
-      let anchor = Vscode.TextDocument.positionAt document ~offset:cbegin in
-      let active = Vscode.TextDocument.positionAt document ~offset:cend in
-      TextEditor.revealRange editor
-        ~range:(Range.makePositions ~start:anchor ~end_:active)
-        ();
-      TextEditor.set_selection editor (Selection.makePositions ~anchor ~active)
-    in
-    List.iter ~f:apply_selection visibleTextEditors
 
 let open_pp_doc ~document =
   let open Promise.Syntax in
@@ -224,7 +162,6 @@ let reload_pp_doc ~document =
   | None -> Promise.resolve 1
 
 let manage_choice choice ~document : int Promise.t =
-  let make_p c = Promise.resolve c in
   let buildCmd () =
     Sys.command
       ("cd " ^ project_root_path ~document ^ ";eval $(opam env); dune build")
@@ -234,7 +171,7 @@ let manage_choice choice ~document : int Promise.t =
     if buildCmd () = 0 then
       (* FIXME: remove entries on document close *)
       if
-        StringMap.existsi !pp_doc_to_changed_origin_map ~f:(fun ~key ~data:_ ->
+        Map.existsi !pp_doc_to_changed_origin_map ~f:(fun ~key ~data:_ ->
             String.equal key (doc_string_uri ~document))
       then
         reload_pp_doc ~document
@@ -249,53 +186,65 @@ let manage_choice choice ~document : int Promise.t =
       in
       match perror with
       | Some 0 -> build_project ()
-      | _ -> make_p 1
+      | _ -> Promise.resolve 1
   in
   match choice with
   | Some 0 -> build_project ()
-  | _ -> make_p 1
+  | _ -> Promise.resolve 1
 
-module Command = struct
-  let open_ast_explorer ~uri =
-    let _ =
-      Vscode.Commands.executeCommand ~command:"vscode.openWith"
-        ~args:
-          [ Uri.t_to_js uri
-          ; Ojs.string_to_js "ast-editor"
-          ; ViewColumn.t_to_js ViewColumn.Beside
-          ]
-    in
+let open_ast_explorer ~uri =
+  let _ =
+    Vscode.Commands.executeCommand ~command:"vscode.openWith"
+      ~args:
+        [ Uri.t_to_js uri
+        ; Ojs.string_to_js "ast-editor"
+        ; ViewColumn.t_to_js ViewColumn.Beside
+        ]
+  in
+  ()
+
+let manage_open_failure ~document =
+  let open Promise.Syntax in
+  let* choice =
+    Window.showInformationMessage
+      ~message:
+        ( "Seems like the file '"
+        ^ relative_document_path ~document
+        ^ "' haven't been preprocessed yet." )
+      ~choices:[ ("Run `dune build`", 0); ("Abandon", 1) ]
+      ()
+  in
+  manage_choice choice ~document
+
+(*this needs testing (especially on linux)*)
+let open_preprocessed_doc_to_the_side ~document =
+  let pp_path = get_pp_path ~document in
+  if pp_exists pp_path then
+    open_pp_doc ~document
+  else
+    manage_open_failure ~document
+
+let open_both_ppx_ast ~document =
+  let open Promise.Syntax in
+  let+ pp_doc_open = open_preprocessed_doc_to_the_side ~document in
+  if pp_doc_open = 0 then
+    open_ast_explorer ~uri:(TextDocument.uri document)
+  else
     ()
 
-  let manage_open_failure ~document =
-    let open Promise.Syntax in
-    let* choice =
-      Window.showInformationMessage
-        ~message:
-          ( "Seems like the file '"
-          ^ relative_document_path ~document
-          ^ "' haven't been preprocessed yet." )
-        ~choices:[ ("Run `dune build`", 0); ("Abandon", 1) ]
-        ()
-    in
-    manage_choice choice ~document
-
-  (*this needs testing (especially on linux)*)
-  let open_preprocessed_doc_to_the_side ~document =
-    let pp_path = get_pp_path ~document in
-    if pp_exists pp_path then
-      open_pp_doc ~document
-    else
-      manage_open_failure ~document
-
-  let open_both_ppx_ast ~document =
-    let open Promise.Syntax in
-    let+ pp_doc_open = open_preprocessed_doc_to_the_side ~document in
-    if pp_doc_open = 0 then
-      open_ast_explorer ~uri:(TextDocument.uri document)
-    else
+let manage_changed_origin ~document =
+  let open Promise.Syntax in
+  let* choice =
+    Window.showInformationMessage
+      ~message:
+        "The original document have been changed, would you like to rebuild \
+         the project?"
+      ~choices:[ ("Run `dune build`", 0); ("Cancel", 1) ]
       ()
+  in
+  manage_choice choice ~document
 
+module Command = struct
   let _reveal_ast_node =
     let handler _ ~textEditor ~edit:_ ~args:_ =
       let (_ : unit Promise.t) =
@@ -390,75 +339,6 @@ let _on_hover custom_doc webview =
   let provider = HoverProvider.create ~provideHover in
   Vscode.Languages.registerHoverProvider ~selector:(`String "ocaml") ~provider
 
-let resolveCustomTextEditor ~(document : TextDocument.t) ~webviewPanel ~token :
-    CustomTextEditorProvider.ResolvedEditor.t =
-  let _ = token in
-  let webview = WebviewPanel.webview webviewPanel in
-  let _ =
-    WebviewPanel.onDidDispose webviewPanel
-      ~listener:(fun () -> original_mode := true)
-      ()
-  in
-  (*persist the webview*)
-  webview_map :=
-    StringMap.set !webview_map ~key:(doc_string_uri ~document) ~data:webview;
-  let options = WebView.options webview in
-  WebviewOptions.set_enableScripts options true;
-  WebView.set_options webview options;
-  let _ =
-    WebView.onDidReceiveMessage webview
-      ~listener:(onDidReceiveMessage_listener ~document)
-      ()
-  in
-  WebView.set_html webview (get_html_for_WebView_from_file ());
-  let _ =
-    Workspace.onDidChangeTextDocument
-      ~listener:(onDidChangeTextDocument_listener ~webview ~document)
-      ()
-  in
-  transform_to_ast ~document ~webview;
-  (* let _ = _on_hover document webview in *)
-  CustomTextEditorProvider.ResolvedEditor.t_of_js (Ojs.variable "null")
-
-let manage_changed_origin ~document =
-  let open Promise.Syntax in
-  let* choice =
-    Window.showInformationMessage
-      ~message:
-        "The original document have been changed, would you like to rebuild \
-         the project?"
-      ~choices:[ ("Run `dune build`", 0); ("Cancel", 1) ]
-      ()
-  in
-  manage_choice choice ~document
-
-let _onDidSaveTextDocument_listener_pp document =
-  let _ =
-    let origin_uri = doc_string_uri ~document in
-    match StringMap.find !origin_to_pp_doc_map origin_uri with
-    | Some pp_uri ->
-      let open Promise.Syntax in
-      let* original_document =
-        Workspace.openTextDocument (`Uri (Uri.parse pp_uri ()))
-      in
-      manage_changed_origin ~document:original_document
-    | None -> Promise.resolve 1
-  in
-  ()
-
-let onDidChangeActiveTextEditor_listener e =
-  if not (TextEditor.t_to_js e |> Ojs.is_null) then
-    let document = TextEditor.document e in
-    match
-      StringMap.find !pp_doc_to_changed_origin_map (doc_string_uri ~document)
-    with
-    | Some true ->
-      let _ = manage_changed_origin ~document in
-      ()
-    | _ -> ()
-  else
-    ()
-
 let close_visible_editors_by_uri uri =
   let f e =
     let visibleDocument = TextEditor.document e in
@@ -477,20 +357,6 @@ let close_visible_editors_by_uri uri =
   in
   Window.visibleTextEditors () |> List.iter ~f
 
-let onDidCloseTextDocument_listener (document : TextDocument.t) =
-  let origin_uri = doc_string_uri ~document in
-  match StringMap.find !origin_to_pp_doc_map origin_uri with
-  | Some uri ->
-    pp_doc_to_changed_origin_map :=
-      StringMap.remove !pp_doc_to_changed_origin_map uri;
-    origin_to_pp_doc_map := StringMap.remove !origin_to_pp_doc_map origin_uri;
-    (* close corresponding pp buffers to avoid confusion *)
-    close_visible_editors_by_uri uri
-  | None ->
-    remove_keys_by_data origin_to_pp_doc_map origin_uri;
-    pp_doc_to_changed_origin_map :=
-      StringMap.remove !pp_doc_to_changed_origin_map origin_uri
-
 let text_document_content_provider_ppx =
   let module EventEmitter = EventEmitter.Make (Uri) in
   let event_emitter = EventEmitter.make () in
@@ -499,6 +365,98 @@ let text_document_content_provider_ppx =
     `Value (Some (Uri.query uri))
   in
   TextDocumentContentProvider.create ~provideTextDocumentContent ~onDidChange
+
+let onDidChangeActiveTextEditor_listener e =
+  if not (TextEditor.t_to_js e |> Ojs.is_null) then
+    let document = TextEditor.document e in
+    match Map.find !pp_doc_to_changed_origin_map (doc_string_uri ~document) with
+    | Some true ->
+      let _ = manage_changed_origin ~document in
+      ()
+    | _ -> ()
+  else
+    ()
+
+let onDidCloseTextDocument_listener (document : TextDocument.t) =
+  let origin_uri = doc_string_uri ~document in
+  match Map.find !origin_to_pp_doc_map origin_uri with
+  | Some uri ->
+    pp_doc_to_changed_origin_map := Map.remove !pp_doc_to_changed_origin_map uri;
+    origin_to_pp_doc_map := Map.remove !origin_to_pp_doc_map origin_uri;
+    (* close corresponding pp buffers to avoid confusion *)
+    close_visible_editors_by_uri uri
+  | None ->
+    remove_keys_by_data origin_to_pp_doc_map origin_uri;
+    pp_doc_to_changed_origin_map :=
+      Map.remove !pp_doc_to_changed_origin_map origin_uri
+
+let onDidChangeTextDocument_listener event ~(document : TextDocument.t)
+    ~(webview : WebView.t) =
+  let changed_document = TextDocumentChangeEvent.document event in
+  if document_eq document changed_document then
+    transform_to_ast ~document ~webview
+  else
+    ()
+
+let onDidSaveTextDocument_listener_pp document =
+  on_origin_update_content document
+
+let onDidReceiveMessage_listener msg ~(document : TextDocument.t) =
+  if Ojs.has_property msg "selectedOutput" then
+    original_mode := not !original_mode
+  else
+    let cbegin = Int.of_string (Ojs.string_of_js (Ojs.get msg "begin")) in
+    let cend = Int.of_string (Ojs.string_of_js (Ojs.get msg "end")) in
+    let f editor =
+      let visible_doc = TextEditor.document editor in
+      (!original_mode && document_eq document visible_doc)
+      || (not !original_mode)
+         && entry_exists (doc_string_uri ~document)
+              (doc_string_uri ~document:visible_doc)
+    in
+    let visibleTextEditors =
+      List.filter (Vscode.Window.visibleTextEditors ()) ~f
+    in
+    let apply_selection editor =
+      let document = TextEditor.document editor in
+      let anchor = Vscode.TextDocument.positionAt document ~offset:cbegin in
+      let active = Vscode.TextDocument.positionAt document ~offset:cend in
+      TextEditor.revealRange editor
+        ~range:(Range.makePositions ~start:anchor ~end_:active)
+        ();
+      TextEditor.set_selection editor (Selection.makePositions ~anchor ~active)
+    in
+    List.iter ~f:apply_selection visibleTextEditors
+
+let resolveCustomTextEditor ~(document : TextDocument.t) ~webviewPanel ~token :
+    CustomTextEditorProvider.ResolvedEditor.t =
+  let _ = token in
+  let webview = WebviewPanel.webview webviewPanel in
+  let _ =
+    WebviewPanel.onDidDispose webviewPanel
+      ~listener:(fun () -> original_mode := true)
+      ()
+  in
+  (*persist the webview*)
+  webview_map :=
+    Map.set !webview_map ~key:(doc_string_uri ~document) ~data:webview;
+  let options = WebView.options webview in
+  WebviewOptions.set_enableScripts options true;
+  WebView.set_options webview options;
+  let _ =
+    WebView.onDidReceiveMessage webview
+      ~listener:(onDidReceiveMessage_listener ~document)
+      ()
+  in
+  WebView.set_html webview (get_html_for_WebView_from_file ());
+  let _ =
+    Workspace.onDidChangeTextDocument
+      ~listener:(onDidChangeTextDocument_listener ~webview ~document)
+      ()
+  in
+  transform_to_ast ~document ~webview;
+  (* let _ = _on_hover document webview in *)
+  CustomTextEditorProvider.ResolvedEditor.t_of_js (Ojs.variable "null")
 
 let register extension =
   let editorProvider =
