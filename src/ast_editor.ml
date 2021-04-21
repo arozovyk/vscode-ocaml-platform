@@ -302,29 +302,34 @@ module Command = struct
         let selection = Vscode.TextEditor.selection textEditor in
         let document = TextEditor.document textEditor in
         let position = Vscode.Selection.start selection in
-
-        let webview =
-          match StringMap.find !webview_map (doc_string_uri ~document) with
-          | Some wv -> wv
+        let webview_opt =
+          match Map.find !webview_map (doc_string_uri ~document) with
+          | wv_opt when !original_mode -> wv_opt
           | None -> (
             match
               put_keys_into_a_list (doc_string_uri ~document)
                 !origin_to_pp_doc_map
             with
             | [ k ] -> (
-              match StringMap.find !webview_map k with
-              | Some wv ->
-                if !original_mode then
-                  failwith "Can't reveal custom ast in the origianl mode"
-                else
-                  wv
-              | None -> failwith "No webview found " )
-            | _ -> failwith "No origin uri found" )
+              match Map.find !webview_map k with
+              | wv_opt when not !original_mode -> wv_opt
+              | _ -> None )
+            | _ -> None )
+          | _ -> None
         in
-
         let offset = TextDocument.offsetAt document ~position in
         Promise.make (fun ~resolve:_ ~reject:_ ->
-            send_msg "focus" (Ojs.int_to_js offset) ~webview)
+            match webview_opt with
+            | Some webview -> send_msg "focus" (Ojs.int_to_js offset) ~webview
+            | None ->
+              let _ =
+                Window.showErrorMessage
+                  ~message:
+                    "Wrong outputmode inside the ASTexplorer, please select \
+                     the correct tab"
+                  ~choices:[ ("Close", 0) ] ()
+              in
+              ())
       in
       ()
     in
