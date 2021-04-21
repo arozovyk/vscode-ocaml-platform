@@ -68,3 +68,8 @@ let ocamlformat message =
       List.rev !lines
   in
   read_file tmp_path |> List.fold ~init:"" ~f:(fun x y -> x ^ y ^ "\n")
+
+
+let get_pp_pp_structure ~document =
+  let str = get_preprocessed_structure (get_pp_path ~document) in
+  Format.asprintf "%a" Pprintast.structure str |> ocamlformat

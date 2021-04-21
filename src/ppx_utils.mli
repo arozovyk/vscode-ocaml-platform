@@ -12,3 +12,6 @@ val ocamlformat : string -> string
 val project_root_path : document:TextDocument.t -> string
 
 val relative_document_path : document:TextDocument.t -> string
+
+
+val get_pp_pp_structure : document:TextDocument.t -> string
