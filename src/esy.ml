@@ -61,13 +61,13 @@ module Discover = struct
 
   let is_esy_compatible filename json =
     String.equal filename "esy.json"
-    || ( property_exists json "dependencies"
-       || property_exists json "devDependencies" )
+    || (property_exists json "dependencies"
+       || property_exists json "devDependencies")
        && property_exists json "esy"
 
   let parse_file project_root = function
     | "opam" -> Promise.return (valid project_root)
-    | s when String.equal (Caml.Filename.extension s) ".opam" ->
+    | s when String.equal (Stdlib.Filename.extension s) ".opam" ->
       Promise.return (valid project_root)
     | ("esy.json" | "package.json") as fname -> (
       let manifest_file = Path.(project_root / fname) |> Path.to_string in
@@ -76,7 +76,7 @@ module Discover = struct
       match Jsonoo.try_parse_opt manifest with
       | None -> invalid_json project_root fname
       | Some json when is_esy_compatible fname json -> valid project_root
-      | _ -> None )
+      | _ -> None)
     | _ -> Promise.return None
 
   let parse_dir dir =
@@ -147,7 +147,7 @@ let state t manifest =
       | Some esy_response ->
         esy_response
         |> Jsonoo.Decode.field "isProjectReadyForDev" Jsonoo.Decode.bool
-        |> Result.return )
+        |> Result.return)
   in
   if is_project_ready_for_dev then
     State.Ready

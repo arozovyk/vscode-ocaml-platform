@@ -13,9 +13,9 @@
     "url": "https://github.com/ocamllabs/vscode-ocaml-platform/issues"
   },
   "homepage": "https://github.com/ocamllabs/vscode-ocaml-platform",
-  "main": "./dist/vscode_ocaml_platform.js",
+  "main": "./dist/vscode_ocaml_platform.bc.js",
   "engines": {
-    "vscode": "^1.54.0"
+    "vscode": "^1.55.0"
   },
   "categories": [
     "Programming Languages"
@@ -209,14 +209,12 @@
         "command": "ocaml.open-ast-explorer-to-the-side",
         "category": "OCaml",
         "title": "AST preview"
-      }
-      ,
+      },
       {
         "command": "ocaml.show-preprocessed-document",
         "category": "OCaml",
         "title": "Show Preprocessed Document"
-      }
-      ,
+      },
       {
         "command": "ocaml.open-pp-editor-and-ast-explorer",
         "category": "OCaml",
@@ -249,8 +247,7 @@
         "command": "ocaml.evaluate-selection",
         "key": "Shift+Enter",
         "when": "editorTextFocus && editorLangId == ocaml || editorTextFocus && editorLangId == ocaml.interface || editorTextFocus && editorLangId == reason || editorTextFocus && editorLangId == ocaml.ocamllex || editorTextFocus && editorLangId == ocaml.menhir"
-      }
-      ,
+      },
       {
         "command": "ocaml.reveal-ast-node",
         "key": "Shift+Ctrl+D",
@@ -903,13 +900,14 @@
     "vscode-languageclient": "7.0.0"
   },
   "devDependencies": {
-    "@types/vscode": "1.54.0",
+    "@types/vscode": "1.55.0",
+    "esbuild": "^0.11.15",
     "fs-extra": "9.1.0",
     "mocha": "7.2.0",
     "npm-run-all": "4.1.5",
     "ovsx": "0.1.0-next.97d460c",
     "prettier": "2.2.1",
-    "vsce": "1.87.0",
+    "vsce": "1.87.1",
     "vscode-test": "1.5.2"
   }
 }

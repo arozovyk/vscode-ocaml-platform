@@ -1,17 +1,16 @@
 open Import
 open Ppx_utils
-module Map = Map.Make (String)
-
 (*Indicates the output mode in order to highlight the right document*)
-let original_mode = ref true
+open Stdio
+let original_mode = ref true 
 
-let webview_map = ref Map.empty
+let webview_map = ref (Map.empty (module String)) 
 
 let doc_string_uri ~document = Uri.toString (TextDocument.uri document) ()
 
-let pp_doc_to_changed_origin_map = ref Map.empty
+let pp_doc_to_changed_origin_map = ref (Map.empty(module String) ) 
 
-let origin_to_pp_doc_map = ref Map.empty
+let origin_to_pp_doc_map = ref (Map.empty (module String))
 
 let entry_exists k d =
   Map.existsi !origin_to_pp_doc_map ~f:(fun ~key ~data ->
@@ -58,8 +57,8 @@ let _print_state () =
 
 let send_msg t value ~(webview : WebView.t) =
   let msg = Ojs.empty_obj () in
-  Ojs.set msg "type" (Ojs.string_to_js t);
-  Ojs.set msg "value" value;
+  Ojs.set_prop_ascii msg "type" (Ojs.string_to_js t);
+  Ojs.set_prop_ascii msg "value" value;
   let _ = WebView.postMessage webview msg in
   ()
 
@@ -70,29 +69,31 @@ let document_eq a b =
 
 let get_html_for_WebView_from_file () =
   let filename = Node.__dirname () ^ "/../astexplorer/dist/index.html" in
-  In_channel.read_all filename
+   In_channel.read_all filename
 
-(* let write_to_file content path = let tmp_path = path in let oc =
-   Out_channel.create tmp_path in Printf.fprintf oc "%s\n" content;
-   Out_channel.close oc *)
+let write_to_file content path =
+  let tmp_path = path in
+  let oc = Out_channel.create tmp_path in
+   Out_channel.fprintf oc "%s\n" content;
+  Out_channel.close oc
 
 let transform_to_ast ~(document : TextDocument.t) ~(webview : WebView.t) =
   let open Jsonoo.Encode in
   let origin_json = TextDocument.getText document () |> Dumpast.transform in
-  let pp_path = get_pp_path ~document in
+  let _pp_path = get_pp_path ~document in
   let pp_value =
-    if pp_exists pp_path then
+    try 
       (*The following would return the structure with ghost_locs*)
-      (* let ppstruct = get_preprocessed_structure (get_pp_path ~document) in
-         let ppml_json = Dumpast.from_structure ppstruct in *)
-      let reparsed_json = Dumpast.transform (get_pp_pp_structure ~document) in
-      (* write_to_file (Jsonoo.stringify ppml_json) "/tmp/ppml"; write_to_file
-         (Jsonoo.stringify reparsed_json) "/tmp/reparsed"; *)
+      let ppstruct = get_preprocessed_structure (get_pp_path ~document) in
+      let ppml_json = Dumpast.from_structure ppstruct in
+      let reparsed_json = Dumpast.transform ( get_pp_pp_structure ~document ) in
+      write_to_file (Jsonoo.stringify ppml_json) "/tmp/ppml";
+      write_to_file (Jsonoo.stringify reparsed_json) "/tmp/reparsed";
       reparsed_json
-    (* Use only the actual locations while waiting on the bug fix where
-       reparsing returns two different ASTs, most likely due to the AST version
-       difference (resulting from the use of OMP with Pprintast ?) *)
-    else
+      (* Use only the actual locations while waiting on the bug fix where
+         reparsing returns two different ASTs, most likely due to the AST
+         version difference (resulting from the use of OMP with Pprintast ?) *)
+  with  Sys_error _ ->
       null
   in
   let astpair = object_ [ ("ast", origin_json); ("pp_ast", pp_value) ] in
@@ -107,7 +108,7 @@ let open_pp_doc ~document =
            ( "post-ppx: "
            ^ TextDocument.fileName document
            ^ "?"
-           ^ get_pp_pp_structure ~document )
+           ^ (get_pp_pp_structure ~document   ))
            ()))
   in
   (*save uri pair to track changes*)
@@ -147,7 +148,7 @@ let reload_pp_doc ~document =
   WorkspaceEdit.replace edit
     ~uri:(TextDocument.uri document)
     ~range
-    ~newText:(get_pp_pp_structure ~document:original_document);
+    ~newText:( get_pp_pp_structure  ~document:original_document );
   match
     List.find
       ~f:(fun editor -> document_eq (TextEditor.document editor) document)
@@ -163,8 +164,8 @@ let reload_pp_doc ~document =
 
 let manage_choice choice ~document : int Promise.t =
   let buildCmd () =
-    Sys.command
-      ("cd " ^ project_root_path ~document ^ ";eval $(opam env); dune build")
+    (* Sys.command
+      ("cd " ^ project_root_path ~document ^ ";eval $(opam env); dune build") *) 0
   in
   let rec build_project () =
     let open Promise.Syntax in
@@ -218,10 +219,10 @@ let manage_open_failure ~document =
 
 (*this needs testing (especially on linux)*)
 let open_preprocessed_doc_to_the_side ~document =
-  let pp_path = get_pp_path ~document in
-  if pp_exists pp_path then
+  let _pp_path = get_pp_path ~document in
+  try 
     open_pp_doc ~document
-  else
+with _ ->
     manage_open_failure ~document
 
 let open_both_ppx_ast ~document =
@@ -405,8 +406,10 @@ let onDidReceiveMessage_listener msg ~(document : TextDocument.t) =
   if Ojs.has_property msg "selectedOutput" then
     original_mode := not !original_mode
   else
-    let cbegin = Int.of_string (Ojs.string_of_js (Ojs.get msg "begin")) in
-    let cend = Int.of_string (Ojs.string_of_js (Ojs.get msg "end")) in
+    if (Ojs.has_property msg "begin") && (Ojs.has_property msg "end") then (
+    let cbegin = Int.of_string (Ojs.string_of_js (Ojs.get_prop_ascii msg "begin")) in
+    let cend = Int.of_string (Ojs.string_of_js (Ojs.get_prop_ascii msg "end")) in
+    print_endline ("dogs : "^(Int.to_string cbegin)^":"^(Int.to_string cend)) ;
     let f editor =
       let visible_doc = TextEditor.document editor in
       (!original_mode && document_eq document visible_doc)
@@ -414,10 +417,10 @@ let onDidReceiveMessage_listener msg ~(document : TextDocument.t) =
          && entry_exists (doc_string_uri ~document)
               (doc_string_uri ~document:visible_doc)
     in
-    let visibleTextEditors =
+    let _visibleTextEditors =
       List.filter (Vscode.Window.visibleTextEditors ()) ~f
     in
-    let apply_selection editor =
+    (* let apply_selection editor =
       let document = TextEditor.document editor in
       let anchor = Vscode.TextDocument.positionAt document ~offset:cbegin in
       let active = Vscode.TextDocument.positionAt document ~offset:cend in
@@ -426,7 +429,7 @@ let onDidReceiveMessage_listener msg ~(document : TextDocument.t) =
         ();
       TextEditor.set_selection editor (Selection.makePositions ~anchor ~active)
     in
-    List.iter ~f:apply_selection visibleTextEditors
+    List.iter ~f:apply_selection visibleTextEditors)  *) ()) else ()
 
 let resolveCustomTextEditor ~(document : TextDocument.t) ~webviewPanel ~token :
     CustomTextEditorProvider.ResolvedEditor.t =

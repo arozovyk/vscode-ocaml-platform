@@ -32,7 +32,7 @@ jobs:
           opam-pin: false
 
       - name: Use Node.js ${{ matrix.node-version }}
-        uses: actions/setup-node@v1
+        uses: actions/setup-node@v2
         with:
           node-version: ${{ matrix.node-version }}
 
@@ -42,41 +42,24 @@ jobs:
           opam install ocaml-lsp-server
 
       - name: Install opam packages
-        run: |
-          opam install . --deps-only --with-test
+        run: opam install . --deps-only --with-test
 
       - name: Use latest esy
         run: npm install --global esy
 
-      # This step is required because esy's home directory doesn't exist at this point
       - name: Install esy packages
-        run: esy install
-
-      - name: Get esy cache directory path
-        id: esy-cache-dir-path
-        run: node .github/workflows/print_esy_cache.js
-
-      - name: Restore esy cache
-        uses: actions/cache@v2
+        uses: esy/github-action@v1
         with:
-          path: ${{ steps.esy-cache-dir-path.outputs.dir }}
-          key: esy-${{ matrix.os }}-${{ hashFiles('esy.lock/index.json') }}
-          restore-keys: esy-${{ matrix.os }}-
-
-      - name: Build esy packages
-        # Cleanup build cache in case dependencies have changed
-        run: |
-          esy build
-          esy cleanup .
-
-      - name: Build extension
-        run: opam exec -- make build
+          cache-key: ${{ hashFiles('esy.lock/index.json') }}
 
       - name: Install npm packages
         run: yarn --frozen-lockfile
 
       - name: Check formatting
         run: yarn fmt:check
+
+      - name: Build extension
+        run: opam exec -- make build
 
       - name: Package extension
         run: yarn package
@@ -126,3 +109,61 @@ jobs:
           asset_content_type: application/zip
         env:
           GITHUB_TOKEN: ${{ github.token }}
+
+  lint-opam:
+    strategy:
+      matrix:
+        ocaml-compiler:
+          - 4.12.x
+        node-version:
+          - 14.x
+
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+
+      - name: Use OCaml ${{ matrix.ocaml-compiler }}
+        uses: avsm/setup-ocaml@v2
+        with:
+          ocaml-compiler: ${{ matrix.ocaml-compiler }}
+          dune-cache: true
+
+      - name: Use Node.js ${{ matrix.node-version }}
+        uses: actions/setup-node@v2
+        with:
+          node-version: ${{ matrix.node-version }}
+
+      - name: Install npm packages
+        run: yarn --frozen-lockfile
+
+      - run: opam depext opam-dune-lint --install
+
+      - run: opam install . --deps-only
+
+      - run: opam exec -- make build
+
+      - run: opam exec -- opam-dune-lint
+
+  lint-fmt:
+    strategy:
+      matrix:
+        ocaml-compiler:
+          - 4.12.x
+
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+
+      - name: Use OCaml ${{ matrix.ocaml-compiler }}
+        uses: avsm/setup-ocaml@v2
+        with:
+          ocaml-compiler: ${{ matrix.ocaml-compiler }}
+          dune-cache: true
+
+      - run: opam depext ocamlformat=$(cat .ocamlformat | grep version | cut -d '=' -f 2) --install
+
+      - run: opam exec -- dune build @fmt

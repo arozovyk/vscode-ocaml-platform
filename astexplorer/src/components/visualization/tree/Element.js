@@ -168,6 +168,7 @@ const Element = React.memo(function Element({
   if (range && level !== 0) {
     onMouseOver = event => {
       if (!(range === null)) {
+        console.log("Posting message: "+JSON.stringify(range))
         vscode.postMessage({
           begin: range[0].toString(),
           end: range[1].toString()/* ,

@@ -25,14 +25,15 @@
  (name vscode-ocaml-platform)
  (synopsis "Visual Studio Code extension for OCaml")
  (depends
-  (vscode (= :version))
+  (vscode
+   (= :version))
   (ocaml
    (>= 4.11))
   (js_of_ocaml
-   (>= 3.8.0))
+   (>= 3.9.0))
   (gen_js_api
-   (= 1.0.6))
-  (core_kernel
+   (= 1.0.8))
+  (base
    (>= v0.14.1))
   (promise_jsoo
    (>= 0.3.1))
@@ -48,9 +49,9 @@
   (ocaml
    (>= 4.11))
   (js_of_ocaml
-   (>= 3.8.0))
+   (>= 3.9.0))
   (gen_js_api
-   (= 1.0.6))
+   (= 1.0.8))
   (promise_jsoo
    (>= 0.3.1))
   (jsonoo

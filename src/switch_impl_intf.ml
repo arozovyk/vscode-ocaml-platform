@@ -59,13 +59,14 @@ let request_switch client document =
   | first_candidate :: other_candidates as candidates -> (
     let first_candidate_item =
       QuickPickItem.create
-        ~label:(Filename.basename first_candidate)
+        ~label:(Stdlib.Filename.basename first_candidate)
         ~picked:true ()
     in
 
     let rest_candidate_items =
       List.map
-        ~f:(fun c -> QuickPickItem.create ~label:(Filename.basename c) ())
+        ~f:(fun c ->
+          QuickPickItem.create ~label:(Stdlib.Filename.basename c) ())
         other_candidates
     in
 
@@ -87,4 +88,4 @@ let request_switch client document =
     | None -> Promise.return ()
     | Some file_uri ->
       let* text_editor = open_file_in_text_editor file_uri in
-      fill_intf_if_empty_untitled text_editor )
+      fill_intf_if_empty_untitled text_editor)

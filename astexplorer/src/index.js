@@ -28,6 +28,7 @@ class Index extends React.Component {
       },
     };
     window.addEventListener("message", (event) => {
+      console.log("Got the message "+JSON.stringify(event.data.value));
       switch (event.data.type) {
         case "parse":
           var parseRes = event.data.value;

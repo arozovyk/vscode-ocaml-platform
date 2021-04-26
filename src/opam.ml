@@ -26,7 +26,7 @@ let make ?root () =
     | Error _ -> None
     | Ok output ->
       let root = String.strip output |> Path.of_string in
-      Some { bin; root } )
+      Some { bin; root })
 
 let spawn t args =
   let rec insert_root_flag opamroot = function
@@ -193,7 +193,7 @@ module Package = struct
     | Ok l ->
       Promise.List.find_map
         (fun fpath ->
-          let basename = Filename.basename fpath in
+          let basename = Stdlib.Filename.basename fpath in
           if String.is_prefix basename ~prefix:name then
             of_path Path.(package_path / fpath)
           else

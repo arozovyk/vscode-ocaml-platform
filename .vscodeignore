@@ -17,3 +17,9 @@ astexplorer/
 azure-pipelines.yaml
 esy.json
 Makefile
+**
+!assets/
+!dist/
+!languages/
+!snippets/
+!syntaxes/

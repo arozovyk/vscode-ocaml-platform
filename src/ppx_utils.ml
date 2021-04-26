@@ -1,6 +1,5 @@
 open Import
-
-let pp_exists absolutePath = Sys.file_exists absolutePath
+open Ppxlib.Utils.Ast_io
 
 let project_root_path ~document =
   let relative =
@@ -23,26 +22,17 @@ let get_pp_path ~(document : TextDocument.t) =
   with Failure errorMsg -> errorMsg
 
 let get_preprocessed_structure path =
-  let ic = In_channel.create path in
-  try
-    let result = Migrate_parsetree.Ast_io.from_channel ic in
-    match result with
-    | Ok (_, ast) -> (
+    let input_source =
+      File "/Users/artemiyrozovyk/Desktop/tarides/tools/test-base/blah.pp.ml"  in 
+     match read input_source ~input_kind:Necessarily_binary with
+  | Ok { ast; _ } -> (
       match ast with
-      | Impl ((module V), st) ->
-        (Migrate_parsetree.Versions.migrate
-           (module V)
-           (module Migrate_parsetree.OCaml_current))
-          .copy_structure
-          st
-      | _ -> failwith "not a structure" )
-    | Error _ -> failwith "result Error."
-  with e ->
-    In_channel.close ic;
-    raise e
+      | Impl i ->i
+      | Intf _ -> failwith "Its an Intf")
+  | Error _ -> failwith "Some error occured"
 
-(*this is not pretty*)
-let ocamlformat message =
+  (*this is not pretty*)
+(* let ocamlformat message =
   let tmp_path = "/tmp/pp_to_format" in
   let oc = Out_channel.create tmp_path in
   let _ =
@@ -68,8 +58,8 @@ let ocamlformat message =
       List.rev !lines
   in
   read_file tmp_path |> List.fold ~init:"" ~f:(fun x y -> x ^ y ^ "\n")
+ *)
 
-
-let get_pp_pp_structure ~document =
+ let get_pp_pp_structure ~document =
   let str = get_preprocessed_structure (get_pp_path ~document) in
-  Format.asprintf "%a" Pprintast.structure str |> ocamlformat
+  Caml.Format.asprintf "%a" Pprintast.structure str 
