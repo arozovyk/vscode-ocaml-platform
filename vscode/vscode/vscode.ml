@@ -690,9 +690,9 @@ module TextEditor = struct
 
     val selection : t -> Selection.t [@@js.get]
 
-  val set_selection : t -> Selection.t -> unit [@@js.set]
+    val set_selection : t -> Selection.t -> unit [@@js.set]
 
-  val selections : t -> Selection.t list [@@js.get]
+    val selections : t -> Selection.t list [@@js.get]
 
     val visibleRanges : t -> Range.t list [@@js.get]
 
@@ -820,21 +820,22 @@ end
 
 module WorkspaceEdit = struct
   include Interface.Make ()
+
   include
-  [%js:
-  val size : t -> int [@@js.get]
+    [%js:
+    val size : t -> int [@@js.get]
 
-  val set_size : t -> int -> unit [@@js.set]
+    val set_size : t -> int -> unit [@@js.set]
 
-  val replace :
-       t
-    -> uri:Uri.t
-    -> range:Range.t
-    -> newText:string (*TODO ->?metadata:WorkspaceEditEntryMetadata.t*)
-    -> unit
-    [@@js.call]
+    val replace :
+         t
+      -> uri:Uri.t
+      -> range:Range.t
+      -> newText:string (*TODO ->?metadata:WorkspaceEditEntryMetadata.t*)
+      -> unit
+      [@@js.call]
 
-  val make : unit -> t [@@js.new "vscode.WorkspaceEdit"]]
+    val make : unit -> t [@@js.new "vscode.WorkspaceEdit"]]
 end
 
 module StatusBarAlignment = struct
@@ -1820,41 +1821,44 @@ end
 
 module Hover = struct
   include Interface.Make ()
+
   include
-  [%js:
-  val contents : t -> MarkdownString.t [@@js.get]
+    [%js:
+    val contents : t -> MarkdownString.t [@@js.get]
 
-  val range : t -> Range.t [@@js.get]
+    val range : t -> Range.t [@@js.get]
 
-  val make :
-       contents:
-         ([ `MarkdownString of MarkdownString.t
-          | `MarkdownStringArray of MarkdownString.t list
-          ][@js.union])
-    -> t
-    [@@js.new "vscode.Hover"]]
+    val make :
+         contents:
+           ([ `MarkdownString of MarkdownString.t
+            | `MarkdownStringArray of MarkdownString.t list
+            ]
+           [@js.union])
+      -> t
+      [@@js.new "vscode.Hover"]]
 end
 
 module HoverProvider = struct
   include Interface.Make ()
-include
-    [%js:
-  val provideHover :
-       t
-    -> document:TextDocument.t
-    -> position:Position.t
-    -> token:CancellationToken.t
-    -> Hover.t list ProviderResult.t
-    [@@js.call]
 
-  val create :
-       provideHover:
-         (   document:TextDocument.t
-          -> position:Position.t
-          -> token:CancellationToken.t
-          -> Hover.t list ProviderResult.t)
-    -> t
-    [@@js.builder]]
+  include
+    [%js:
+    val provideHover :
+         t
+      -> document:TextDocument.t
+      -> position:Position.t
+      -> token:CancellationToken.t
+      -> Hover.t list ProviderResult.t
+      [@@js.call]
+
+    val create :
+         provideHover:
+           (   document:TextDocument.t
+            -> position:Position.t
+            -> token:CancellationToken.t
+            -> Hover.t list ProviderResult.t)
+      -> t
+      [@@js.builder]]
 end
 
 module TaskGroup = struct
@@ -2068,45 +2072,47 @@ end
 
 module TextDocumentContentChangeEvent = struct
   include Interface.Make ()
+
   include
-  [%js:
-  val range : t -> Range.t [@@js.get]
+    [%js:
+    val range : t -> Range.t [@@js.get]
 
-  val rangeLength : t -> int [@@js.get]
+    val rangeLength : t -> int [@@js.get]
 
-  val rangeOffset : t -> int [@@js.get]
+    val rangeOffset : t -> int [@@js.get]
 
-  val text : t -> string [@@js.get]]
+    val text : t -> string [@@js.get]]
 end
 
 module TextDocumentChangeEvent = struct
   include Interface.Make ()
-  include
-  [%js:
-  val contentChanges : t -> TextDocumentContentChangeEvent.t list [@@js.get]
 
-  val document : t -> TextDocument.t [@@js.get]]
+  include
+    [%js:
+    val contentChanges : t -> TextDocumentContentChangeEvent.t list [@@js.get]
+
+    val document : t -> TextDocument.t [@@js.get]]
 end
 
 module TextDocumentContentProvider = struct
   include Interface.Make ()
+
   module OnDidChange = Event.Make (Uri)
+
   include
-  [%js:
+    [%js:
+    val onDidChange : t -> OnDidChange.t [@@js.get]
 
+    val provideTextDocumentContent :
+      t -> uri:Uri.t -> token:CancellationToken.t -> string ProviderResult.t
+      [@@js.call]
 
-  val onDidChange : t -> OnDidChange.t [@@js.get]
-
-  val provideTextDocumentContent :
-    t -> uri:Uri.t -> token:CancellationToken.t -> string ProviderResult.t
-    [@@js.call]
-
-  val create :
-       ?onDidChange:OnDidChange.t
-    -> provideTextDocumentContent:
-         (uri:Uri.t -> token:CancellationToken.t -> string ProviderResult.t)
-    -> t
-    [@@js.builder]]
+    val create :
+         ?onDidChange:OnDidChange.t
+      -> provideTextDocumentContent:
+           (uri:Uri.t -> token:CancellationToken.t -> string ProviderResult.t)
+      -> t
+      [@@js.builder]]
 end
 
 module Workspace = struct
@@ -2124,77 +2130,74 @@ module Workspace = struct
 
   include
     [%js:
-
     val workspaceFolders : unit -> WorkspaceFolder.t maybe_list
-    [@@js.get "vscode.workspace.workspaceFolders"]
+      [@@js.get "vscode.workspace.workspaceFolders"]
 
-  val name : unit -> string or_undefined [@@js.get "vscode.workspace.name"]
+    val name : unit -> string or_undefined [@@js.get "vscode.workspace.name"]
 
-  val rootPath : unit -> string or_undefined
-    [@@js.get "vscode.workspace.rootPath"]
+    val rootPath : unit -> string or_undefined
+      [@@js.get "vscode.workspace.rootPath"]
 
-  val workspaceFile : unit -> Uri.t or_undefined
-    [@@js.get "vscode.workspace.workspaceFile"]
+    val workspaceFile : unit -> Uri.t or_undefined
+      [@@js.get "vscode.workspace.workspaceFile"]
 
-  val textDocuments : unit -> TextDocument.t list
-    [@@js.get "vscode.workspace.textDocuments"]
+    val textDocuments : unit -> TextDocument.t list
+      [@@js.get "vscode.workspace.textDocuments"]
 
-  val onDidChangeWorkspaceFolders : OnDidChangeWorkspaceFolders.t
-    [@@js.global "vscode.workspace.onDidChangeWorkspaceFolders"]
+    val onDidChangeWorkspaceFolders : OnDidChangeWorkspaceFolders.t
+      [@@js.global "vscode.workspace.onDidChangeWorkspaceFolders"]
 
+    val onDidChangeTextDocument : OnDidChangeTextDocument.t
+      [@@js.global "vscode.workspace.onDidChangeTextDocument"]
 
-  val onDidChangeTextDocument : OnDidChangeTextDocument.t
-    [@@js.global "vscode.workspace.onDidChangeTextDocument"]
+    val getWorkspaceFolder : uri:Uri.t -> WorkspaceFolder.t or_undefined
+      [@@js.global "vscode.workspace.getWorkspaceFolder"]
 
-  val getWorkspaceFolder : uri:Uri.t -> WorkspaceFolder.t or_undefined
-    [@@js.global "vscode.workspace.getWorkspaceFolder"]
+    val onDidOpenTextDocument : OnDidOpenTextDocument.t
+      [@@js.global "vscode.workspace.onDidOpenTextDocument"]
 
-  val onDidOpenTextDocument : OnDidOpenTextDocument.t
-    [@@js.global "vscode.workspace.onDidOpenTextDocument"]
+    val onDidSaveTextDocument : OnDidSaveTextDocument.t
+      [@@js.global "vscode.workspace.onDidSaveTextDocument"]
 
+    val onDidCloseTextDocument : OnDidCloseTextDocument.t
+      [@@js.global "vscode.workspace.onDidCloseTextDocument"]
 
-  val onDidSaveTextDocument : OnDidSaveTextDocument.t
-    [@@js.global "vscode.workspace.onDidSaveTextDocument"]
+    val applyEdit : edit:WorkspaceEdit.t -> bool Promise.t
+      [@@js.global "vscode.workspace.applyEdit"]
 
+    val asRelativePath :
+      pathOrUri:([ `String of string | `Uri of Uri.t ][@js.union]) -> string
+      [@@js.global "vscode.workspace.asRelativePath"]
 
-  val onDidCloseTextDocument : OnDidCloseTextDocument.t
-    [@@js.global "vscode.workspace.onDidCloseTextDocument"]
+    val getConfiguration :
+         ?section:string
+      -> ?scope:ConfigurationScope.t
+      -> unit
+      -> WorkspaceConfiguration.t
+      [@@js.global "vscode.workspace.getConfiguration"]
 
-  val applyEdit : edit:WorkspaceEdit.t -> bool Promise.t
-    [@@js.global "vscode.workspace.applyEdit"]
-
-  val asRelativePath :
-    pathOrUri:([ `String of string | `Uri of Uri.t ][@js.union]) -> string
-    [@@js.global "vscode.workspace.asRelativePath"]
-
-  val getConfiguration :
-       ?section:string
-    -> ?scope:ConfigurationScope.t
-    -> unit
-    -> WorkspaceConfiguration.t
-    [@@js.global "vscode.workspace.getConfiguration"]
-
-  val findFiles :
-       includes:GlobPattern.t
-    -> ?excludes:GlobPattern.t
-    -> ?maxResults:int
-    -> ?token:CancellationToken.t
-    -> unit
-    -> Uri.t list Promise.t
-    [@@js.global "vscode.workspace.findFiles"]
+    val findFiles :
+         includes:GlobPattern.t
+      -> ?excludes:GlobPattern.t
+      -> ?maxResults:int
+      -> ?token:CancellationToken.t
+      -> unit
+      -> Uri.t list Promise.t
+      [@@js.global "vscode.workspace.findFiles"]
 
     val openTextDocument :
-    ([ `Uri of Uri.t (*FIXME?*)
-     | `Filename of string
-     | `Interactive of textDocumentOptions or_undefined
-     ]
-    [@js.union])
- -> TextDocument.t Promise.t
- [@@js.global "vscode.workspace.openTextDocument"]
+         ([ `Uri of Uri.t (*FIXME?*)
+          | `Filename of string
+          | `Interactive of textDocumentOptions or_undefined
+          ]
+         [@js.union])
+      -> TextDocument.t Promise.t
+      [@@js.global "vscode.workspace.openTextDocument"]
 
-val registerTextDocumentContentProvider :
- scheme:string -> provider:TextDocumentContentProvider.t -> Disposable.t
- [@@js.global "vscode.workspace.registerTextDocumentContentProvider"]
+    val registerTextDocumentContentProvider :
+      scheme:string -> provider:TextDocumentContentProvider.t -> Disposable.t
+      [@@js.global "vscode.workspace.registerTextDocumentContentProvider"]
+
     val workspaceFolders : unit -> WorkspaceFolder.t maybe_list
       [@@js.get "vscode.workspace.workspaceFolders"]
 
@@ -2598,78 +2601,81 @@ end
 
 module WebviewPanelOptions = struct
   include Interface.Make ()
-  include
-  [%js:
-  val enableFindWidget : t -> bool [@@js.get]
 
-  val retainContextWhenHidden : t -> bool [@@js.get]]
+  include
+    [%js:
+    val enableFindWidget : t -> bool [@@js.get]
+
+    val retainContextWhenHidden : t -> bool [@@js.get]]
 end
 
 module WebviewPortMapping = struct
   include Interface.Make ()
-  include
-  [%js:
-  val extensionHostPort : t -> int [@@js.get]
 
-  val webviewPort : t -> int [@@js.get]]
+  include
+    [%js:
+    val extensionHostPort : t -> int [@@js.get]
+
+    val webviewPort : t -> int [@@js.get]]
 end
 
 module WebviewOptions = struct
   include Interface.Make ()
+
   include
-  [%js:
-  val enableCommandUris : t -> bool [@@js.get]
+    [%js:
+    val enableCommandUris : t -> bool [@@js.get]
 
-  val enableScripts : t -> bool [@@js.get]
+    val enableScripts : t -> bool [@@js.get]
 
-  val set_enableScripts : t -> bool -> unit [@@js.set]
+    val set_enableScripts : t -> bool -> unit [@@js.set]
 
-  val localResourceRoots : t -> Uri.t list [@@js.get]
+    val localResourceRoots : t -> Uri.t list [@@js.get]
 
-  val portMapping : t -> WebviewPortMapping.t list [@@js.get]
+    val portMapping : t -> WebviewPortMapping.t list [@@js.get]
 
-  val create :
-       enableCommandUris:bool
-    -> enableScripts:bool
-    -> localResourceRoots:Uri.t list
-    -> portMapping:WebviewPortMapping.t list
-    -> t
-    [@@js.builder]]
+    val create :
+         enableCommandUris:bool
+      -> enableScripts:bool
+      -> localResourceRoots:Uri.t list
+      -> portMapping:WebviewPortMapping.t list
+      -> t
+      [@@js.builder]]
 end
 
 module WebView = struct
   include Interface.Make ()
+
   module OnDidReceiveMessage = Event.Make (Js.Any)
 
   include
-  [%js:
+    [%js:
+    val onDidReceiveMessage : t -> OnDidReceiveMessage.t [@@js.get]
 
-  val onDidReceiveMessage : t -> OnDidReceiveMessage.t [@@js.get]
+    val cspSource : t -> string [@@js.get]
 
-  val cspSource : t -> string [@@js.get]
+    val html : t -> string [@@js.get]
 
-  val html : t -> string [@@js.get]
+    val set_html : t -> string -> unit [@@js.set]
 
-  val set_html : t -> string -> unit [@@js.set]
+    val options : t -> WebviewOptions.t [@@js.get]
 
-  val options : t -> WebviewOptions.t [@@js.get]
+    val set_options : t -> WebviewOptions.t -> unit [@@js.set]
 
-  val set_options : t -> WebviewOptions.t -> unit [@@js.set]
+    val asWebviewUri : t -> localResource:Uri.t -> Uri.t [@@js.call]
 
-  val asWebviewUri : t -> localResource:Uri.t -> Uri.t [@@js.call]
+    val postMessage : t -> Js.Any.t -> bool Promise.t [@@js.call]
 
-  val postMessage : t -> Js.Any.t -> bool Promise.t [@@js.call]
-
-  val create :
-       onDidReceiveMessage:OnDidReceiveMessage.t
-    -> cspSource:string
-    -> html:string
-    -> options:WebviewOptions.t
-    -> close:(unit -> unit)
-    -> asWebviewUri:(Uri.t -> Uri.t)
-    -> postMessage:(Js.Any.t -> bool Promise.t)
-    -> t
-    [@@js.builder]]
+    val create :
+         onDidReceiveMessage:OnDidReceiveMessage.t
+      -> cspSource:string
+      -> html:string
+      -> options:WebviewOptions.t
+      -> close:(unit -> unit)
+      -> asWebviewUri:(Uri.t -> Uri.t)
+      -> postMessage:(Js.Any.t -> bool Promise.t)
+      -> t
+      [@@js.builder]]
 end
 
 module rec WebviewPanel : sig
@@ -2737,7 +2743,7 @@ end = struct
       ; dark : ([ `Uri of Uri.t ][@js.union])
       }
     [@@js]
-    
+
     let t_of_js js_val =
       let light_js = Ojs.get_prop_ascii js_val "light" in
       let dark_js = Ojs.get_prop_ascii js_val "dark" in
@@ -2745,67 +2751,65 @@ end = struct
       let dark = `Uri ([%js.to: Uri.t] dark_js) in
       { light; dark }
   end
-  
+
   type iconPath =
-  ([ `Uri of Uri.t
-   | `LightDark of LightDarkIcon.t
-   ]
-  [@js.union])
-[@@js]
+    ([ `Uri of Uri.t
+     | `LightDark of LightDarkIcon.t
+     ]
+    [@js.union])
+  [@@js]
 
   module OnDidChangeViewState =
     Event.Make (WebviewPanelOnDidChangeViewStateEvent)
-    module OnDidDispose = Event.Make (Js.Unit)
+  module OnDidDispose = Event.Make (Js.Unit)
 
-    include
+  include
     [%js:
-  val onDidChangeViewState : t -> OnDidChangeViewState.t [@@js.get]
+    val onDidChangeViewState : t -> OnDidChangeViewState.t [@@js.get]
 
+    val onDidDispose : t -> OnDidDispose.t [@@js.get]
 
-  val onDidDispose : t -> OnDidDispose.t [@@js.get]
+    (*let iconPath_of_js js_val = if Ojs.has_property js_val "path" then `Uri
+      ([%js.to: Uri.t] js_val) else if Ojs.has_property js_val "light" then
+      `LightDark ([%js.to: LightDarkIcon.t] js_val) else assert false*)
 
-  
+    val active : t -> bool [@@js.get]
 
-  (*let iconPath_of_js js_val = if Ojs.has_property js_val "path" then `Uri
-    ([%js.to: Uri.t] js_val) else if Ojs.has_property js_val "light" then
-    `LightDark ([%js.to: LightDarkIcon.t] js_val) else assert false*)
+    val options : t -> WebviewPanelOptions.t [@@js.get]
 
-  val active : t -> bool [@@js.get]
+    val title : t -> string [@@js.get]
 
-  val options : t -> WebviewPanelOptions.t [@@js.get]
+    val viewColumn : t -> ViewColumn.t [@@js.get]
 
-  val title : t -> string [@@js.get]
+    val viewType : t -> string [@@js.get]
 
-  val viewColumn : t -> ViewColumn.t [@@js.get]
+    val visible : t -> bool [@@js.get]
 
-  val viewType : t -> string [@@js.get]
+    val webview : t -> WebView.t [@@js.get]
 
-  val visible : t -> bool [@@js.get]
+    val set_webview : t -> WebView.t -> unit [@@js.set]
 
-  val webview : t -> WebView.t [@@js.get]
+    val dispose : t -> Js.Any.t [@@js.call]
 
-  val set_webview : t -> WebView.t -> unit [@@js.set]
+    val reveal :
+      t -> ?preserveFocus:bool -> ?viewColumn:ViewColumn.t -> unit -> unit
+      [@@js.call]
 
-  val dispose : t -> Js.Any.t [@@js.call]
-
-  val reveal :
-    t -> ?preserveFocus:bool -> ?viewColumn:ViewColumn.t -> unit -> unit
-    [@@js.call]
-
-  val create :
-       onDidChangeViewState:OnDidChangeViewState.t
-    -> onDidDispose:OnDidDispose.t
-    -> active:bool
-    -> options:WebviewPanelOptions.t
-    -> title:string
-    -> viewColumn:ViewColumn.t
-    -> viewType:string
-    -> visible:bool
-    -> webview:WebView.t
-    -> dispose:Js.Any.t
-    -> reveal:(?preserveFocus:bool -> ?viewColumn:ViewColumn.t -> unit -> unit)
-    -> t
-    [@@js.builder] ]
+    val create :
+         onDidChangeViewState:OnDidChangeViewState.t
+      -> onDidDispose:OnDidDispose.t
+      -> active:bool
+      -> options:WebviewPanelOptions.t
+      -> title:string
+      -> viewColumn:ViewColumn.t
+      -> viewType:string
+      -> visible:bool
+      -> webview:WebView.t
+      -> dispose:Js.Any.t
+      -> reveal:
+           (?preserveFocus:bool -> ?viewColumn:ViewColumn.t -> unit -> unit)
+      -> t
+      [@@js.builder]]
 end
 
 and WebviewPanelOnDidChangeViewStateEvent : sig
@@ -2814,9 +2818,8 @@ and WebviewPanelOnDidChangeViewStateEvent : sig
   val webviewPanel : t -> WebviewPanel.t
 end = struct
   include Interface.Make ()
-  include
-  [%js:
-  val webviewPanel : t -> WebviewPanel.t [@@js.get]]
+
+  include [%js: val webviewPanel : t -> WebviewPanel.t [@@js.get]]
 end
 
 module CustomTextEditorProvider = struct
@@ -2840,24 +2843,25 @@ module CustomTextEditorProvider = struct
       | `Unit v -> Js.Unit.t_to_js v
       | `Promise p -> Promise.void_to_js p
   end
-  include
-  [%js:
-  val resolveCustomTextEditor :
-       t
-    -> document:TextDocument.t
-    -> webviewPanel:WebviewPanel.t
-    -> token:CancellationToken.t
-    -> ResolvedEditor.t
-    [@@js.call]
 
-  val create :
-       resolveCustomTextEditor:
-         (   document:TextDocument.t
-          -> webviewPanel:WebviewPanel.t
-          -> token:CancellationToken.t
-          -> ResolvedEditor.t)
-    -> t
-    [@@js.builder]]
+  include
+    [%js:
+    val resolveCustomTextEditor :
+         t
+      -> document:TextDocument.t
+      -> webviewPanel:WebviewPanel.t
+      -> token:CancellationToken.t
+      -> ResolvedEditor.t
+      [@@js.call]
+
+    val create :
+         resolveCustomTextEditor:
+           (   document:TextDocument.t
+            -> webviewPanel:WebviewPanel.t
+            -> token:CancellationToken.t
+            -> ResolvedEditor.t)
+      -> t
+      [@@js.builder]]
 end
 
 module Window = struct
@@ -2994,23 +2998,26 @@ module Window = struct
 
     val createTreeView : viewId:string -> options:Ojs.t -> Ojs.t
       [@@js.global "vscode.window.createTreeView"]
-      val createWebviewPanel :
-       viewType:string
-    -> title:string
-    -> showOptions:ViewColumn.t
-    -> WebviewPanel.t
-    [@@js.global "vscode.window.createWebviewPanel"]
 
-  val registerCustomEditorProvider :
-       viewType:string
-    -> provider:
-         ([ `CustomTextEditorProvider of CustomTextEditorProvider.t
-          | `CustomReadonlyEditorProvider of CustomTextEditorProvider.t (*TODO*)
-          | `CustomEditorProvider of CustomTextEditorProvider.t (*TODO*)
-          ][@js.union])
-    -> Disposable.t
-    [@@js.global "vscode.window.registerCustomEditorProvider"]
-      ]
+    val createWebviewPanel :
+         viewType:string
+      -> title:string
+      -> showOptions:ViewColumn.t
+      -> WebviewPanel.t
+      [@@js.global "vscode.window.createWebviewPanel"]
+
+    val registerCustomEditorProvider :
+         viewType:string
+      -> provider:
+           ([ `CustomTextEditorProvider of CustomTextEditorProvider.t
+            | `CustomReadonlyEditorProvider of
+              CustomTextEditorProvider.t
+              (*TODO*)
+            | `CustomEditorProvider of CustomTextEditorProvider.t (*TODO*)
+            ]
+           [@js.union])
+      -> Disposable.t
+      [@@js.global "vscode.window.registerCustomEditorProvider"]]
 
   let getChoices choices =
     choices
@@ -3068,8 +3075,6 @@ module Window = struct
     let module TreeView = TreeView.Make (T) in
     let options = [%js.of: TreeViewOptions.t] options in
     [%js.to: TreeView.t] (createTreeView ~viewId ~options)
-
-  
 end
 
 module Commands = struct
@@ -3109,13 +3114,10 @@ module Languages = struct
       -> provider:DocumentFormattingEditProvider.t
       -> Disposable.t
       [@@js.global "vscode.languages.registerDocumentFormattingEditProvider"]
-      
-      val registerHoverProvider :
-      selector:DocumentSelector.t -> provider:HoverProvider.t -> Disposable.t
-      [@@js.global "vscode.languages.registerHoverProvider"]
-      
-      ]
 
+    val registerHoverProvider :
+      selector:DocumentSelector.t -> provider:HoverProvider.t -> Disposable.t
+      [@@js.global "vscode.languages.registerHoverProvider"]]
 end
 
 module Tasks = struct
