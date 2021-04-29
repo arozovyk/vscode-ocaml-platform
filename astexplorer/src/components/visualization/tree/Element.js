@@ -167,8 +167,8 @@ const Element = React.memo(function Element({
   // enable highlight on hover if node has a range
   if (range && level !== 0) {
     onMouseOver = event => {
+      event.stopPropagation();
       if (!(range === null)) {
-        console.log("Posting message: "+JSON.stringify(range))
         vscode.postMessage({
           begin: range[0].toString(),
           end: range[1].toString()/* ,

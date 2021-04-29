@@ -195,8 +195,6 @@ let manage_choice choice ~document : int Promise.t =
   let rec build_project () =
     let open Promise.Syntax in
     let* res = buildCmd () in
-    (* Stdio.print_endline ("out" ^ res.stdout); Stdio.print_endline ("out" ^
-       Int.to_string res.exitCode); Stdio.print_endline ("err" ^ res.stderr); *)
     if res.exitCode = 0 then
       (* FIXME: remove entries on document close *)
       if
@@ -439,7 +437,8 @@ let onDidReceiveMessage_listener msg ~(document : TextDocument.t) =
     let cend =
       Int.of_string (Ojs.string_of_js (Ojs.get_prop_ascii msg "end"))
     in
-    let f editor =
+(*     Stdio.print_endline ("Range : "^(Int.to_string cbegin)^","^(Int.to_string cend));
+ *)    let f editor =
       let visible_doc = TextEditor.document editor in
       (!original_mode && document_eq document visible_doc)
       || (not !original_mode)
@@ -453,11 +452,15 @@ let onDidReceiveMessage_listener msg ~(document : TextDocument.t) =
       let document = TextEditor.document editor in
       let anchor = Vscode.TextDocument.positionAt document ~offset:cbegin in
       let active = Vscode.TextDocument.positionAt document ~offset:cend in
-      (* TextEditor.revealRange editor ~range:(Range.makePositions ~start:anchor
-         ~end_:active) (); *)
-      TextEditor.set_selection editor (Selection.makePositions ~anchor ~active)
+      TextEditor.revealRange editor
+        ~range:(Range.makePositions ~start:anchor ~end_:active)
+        ();
+      TextEditor.set_selection editor (Selection.makePositions ~anchor ~active);
+      (*FIXME: not accessing editor after the combination of revealRane and
+        set_selection (separately) results in a expetion being thrown*)
+      let _ = TextEditor.selections editor in
+      ()
     in
-
     List.iter ~f:apply_selection visibleTextEditors
   else
     ()
