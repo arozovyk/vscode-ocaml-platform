@@ -151,7 +151,6 @@ let reload_pp_doc ~document =
   let lastLine =
     TextDocument.lineAt ~line:(TextDocument.lineCount document - 1) document
   in
-
   let range =
     Range.makePositions
       ~start:(TextLine.range firstLine |> Range.start)
@@ -437,8 +436,9 @@ let onDidReceiveMessage_listener msg ~(document : TextDocument.t) =
     let cend =
       Int.of_string (Ojs.string_of_js (Ojs.get_prop_ascii msg "end"))
     in
-(*     Stdio.print_endline ("Range : "^(Int.to_string cbegin)^","^(Int.to_string cend));
- *)    let f editor =
+    (* Stdio.print_endline ("Range : "^(Int.to_string cbegin)^","^(Int.to_string
+       cend)); *)
+    let f editor =
       let visible_doc = TextEditor.document editor in
       (!original_mode && document_eq document visible_doc)
       || (not !original_mode)
@@ -452,15 +452,16 @@ let onDidReceiveMessage_listener msg ~(document : TextDocument.t) =
       let document = TextEditor.document editor in
       let anchor = Vscode.TextDocument.positionAt document ~offset:cbegin in
       let active = Vscode.TextDocument.positionAt document ~offset:cend in
+      TextEditor.set_selection editor (Selection.makePositions ~anchor ~active);
       TextEditor.revealRange editor
         ~range:(Range.makePositions ~start:anchor ~end_:active)
         ();
-      TextEditor.set_selection editor (Selection.makePositions ~anchor ~active);
-      (*FIXME: not accessing editor after the combination of revealRane and
+      (*FIXME: not accessing editor after the combination of revealRange and
         set_selection (separately) results in a expetion being thrown*)
       let _ = TextEditor.selections editor in
       ()
     in
+
     List.iter ~f:apply_selection visibleTextEditors
   else
     ()

@@ -27,7 +27,10 @@ let parse_ast =
 
     method int value = int value
 
-    method constr label args = object_ [ (label, list id args) ]
+    method constr label args =
+      match args with
+      | [] -> object_ [ ("type", string label) ]
+      | _ -> object_ [ ("type", string label); ("", list id args) ]
 
     method char value = char value
 
@@ -40,10 +43,8 @@ let parse_ast =
         ; ("pstr_loc", super#location pstr_loc)
         ]
 
-   (*  method! expression_desc =
-      function
-      | Pexp_constraint ({ pexp_desc; _ }, _) -> super#expression_desc pexp_desc
-      | arg -> super#expression_desc arg *)
+    (* method! expression_desc = function | Pexp_constraint ({ pexp_desc; _ },
+       _) -> super#expression_desc pexp_desc | arg -> super#expression_desc arg *)
 
     method! open_infos _a
         { popen_expr; popen_override; popen_loc; popen_attributes } =
