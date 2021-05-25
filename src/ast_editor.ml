@@ -347,7 +347,7 @@ module Command = struct
       ~id:Extension_consts.Commands.open_pp_editor_and_ast_explorer handler
 end
 
-let _on_hover custom_doc webview =
+ let _on_hover custom_doc webview =
   let hover =
     Hover.make ~contents:(`MarkdownString (MarkdownString.make ~value:"" ()))
   in
@@ -361,7 +361,7 @@ let _on_hover custom_doc webview =
     `Value (Some [ hover ])
   in
   let provider = HoverProvider.create ~provideHover in
-  Vscode.Languages.registerHoverProvider ~selector:(`String "ocaml") ~provider
+  Vscode.Languages.registerHoverProvider ~selector:(`String "ocaml") ~provider 
 
 let close_visible_editors_by_uri uri =
   let f e =

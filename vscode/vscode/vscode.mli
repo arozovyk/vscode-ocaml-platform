@@ -1424,9 +1424,9 @@ module Hover : sig
          | `MarkdownStringArray of MarkdownString.t list
          ]
     -> t
-end
+end 
 
-module HoverProvider : sig
+ module HoverProvider : sig
   include Js.T
 
   val provideHover :
@@ -1443,8 +1443,7 @@ module HoverProvider : sig
           -> token:CancellationToken.t
           -> Hover.t list ProviderResult.t)
     -> t
-end
-
+end 
 module TaskGroup : sig
   include Js.T
 
@@ -1611,7 +1610,7 @@ module Progress : sig
   val report : t -> value:value -> unit
 end
 
-module TextDocumentContentChangeEvent : sig
+ module TextDocumentContentChangeEvent : sig
   include Js.T
 
   val range : t -> Range.t
@@ -1640,7 +1639,7 @@ module TextDocumentContentProvider : sig
     t -> uri:Uri.t -> token:CancellationToken.t -> string ProviderResult.t
 
   val create :
-       ?onDidChange:Uri.t Event.t
+       onDidChange:Uri.t Event.t
     -> provideTextDocumentContent:
          (uri:Uri.t -> token:CancellationToken.t -> string ProviderResult.t)
     -> t
@@ -1651,17 +1650,17 @@ module Workspace : sig
 
   val name : unit -> string option
 
-  val rootPath : unit -> string or_undefined
+   val rootPath : unit -> string or_undefined
 
   val workspaceFile : unit -> Uri.t option
 
-  val onDidChangeWorkspaceFolders : WorkspaceFolder.t Event.t
+   val onDidChangeWorkspaceFolders : WorkspaceFolder.t Event.t
 
   val onDidChangeTextDocument : TextDocumentChangeEvent.t Event.t
 
   val applyEdit : edit:WorkspaceEdit.t -> bool Promise.t
 
-  val asRelativePath :
+ val asRelativePath :
     pathOrUri:([ `String of string | `Uri of Uri.t ][@js.union]) -> string
 
   val getWorkspaceFolder : uri:Uri.t -> WorkspaceFolder.t option
@@ -1700,9 +1699,9 @@ module Workspace : sig
     -> unit
     -> WorkspaceConfiguration.t
 
-  val registerTextDocumentContentProvider :
+   val registerTextDocumentContentProvider :
     scheme:string -> provider:TextDocumentContentProvider.t -> Disposable.t
-end
+ end
 
 module TreeItemCollapsibleState : sig
   type t =
@@ -2252,8 +2251,8 @@ module Languages : sig
     -> provider:DocumentFormattingEditProvider.t
     -> Disposable.t
 
-  val registerHoverProvider :
-    selector:DocumentSelector.t -> provider:HoverProvider.t -> Disposable.t
+   val registerHoverProvider :
+    selector:DocumentSelector.t -> provider:HoverProvider.t -> Disposable.t 
 end
 
 module Tasks : sig

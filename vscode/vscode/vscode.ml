@@ -1825,7 +1825,7 @@ module DocumentFormattingEditProvider = struct
       [@@js.builder]]
 end
 
-module Hover = struct
+ module Hover = struct
   include Interface.Make ()
 
   include
@@ -1865,7 +1865,7 @@ module HoverProvider = struct
             -> Hover.t list ProviderResult.t)
       -> t
       [@@js.builder]]
-end
+end 
 
 module TaskGroup = struct
   include Class.Make ()
@@ -2088,7 +2088,7 @@ module TextDocumentContentChangeEvent = struct
     val rangeOffset : t -> int [@@js.get]
 
     val text : t -> string [@@js.get]]
-end
+end 
 
 module TextDocumentChangeEvent = struct
   include Interface.Make ()
@@ -2114,19 +2114,19 @@ module TextDocumentContentProvider = struct
       [@@js.call]
 
     val create :
-         ?onDidChange:OnDidChange.t
+         onDidChange:OnDidChange.t
       -> provideTextDocumentContent:
            (uri:Uri.t -> token:CancellationToken.t -> string ProviderResult.t)
       -> t
       [@@js.builder]]
-end
+end 
 
 module Workspace = struct
   module OnDidChangeWorkspaceFolders = Event.Make (WorkspaceFolder)
   module OnDidOpenTextDocument = Event.Make (TextDocument)
   module OnDidCloseTextDocument = Event.Make (TextDocument)
   module OnDidSaveTextDocument = Event.Make (TextDocument)
-  module OnDidChangeTextDocument = Event.Make (TextDocumentChangeEvent)
+  module OnDidChangeTextDocument = Event.Make (TextDocumentChangeEvent) 
 
   type textDocumentOptions =
     { language : string
@@ -2192,7 +2192,7 @@ module Workspace = struct
       [@@js.global "vscode.workspace.findFiles"]
 
     val openTextDocument :
-         ([ `Uri of Uri.t (*FIXME?*)
+         ([ `Uri of Uri.t 
           | `Filename of string
           | `Interactive of textDocumentOptions or_undefined
           ]
@@ -2203,12 +2203,12 @@ module Workspace = struct
     val registerTextDocumentContentProvider :
       scheme:string -> provider:TextDocumentContentProvider.t -> Disposable.t
       [@@js.global "vscode.workspace.registerTextDocumentContentProvider"]
+ 
 
     val workspaceFolders : unit -> WorkspaceFolder.t maybe_list
       [@@js.get "vscode.workspace.workspaceFolders"]
 
     val name : unit -> string or_undefined [@@js.get "vscode.workspace.name"]
-
     val workspaceFile : unit -> Uri.t or_undefined
       [@@js.get "vscode.workspace.workspaceFile"]
 
@@ -3123,7 +3123,7 @@ module Languages = struct
 
     val registerHoverProvider :
       selector:DocumentSelector.t -> provider:HoverProvider.t -> Disposable.t
-      [@@js.global "vscode.languages.registerHoverProvider"]]
+      [@@js.global "vscode.languages.registerHoverProvider"] ]
 end
 
 module Tasks = struct
