@@ -46,8 +46,7 @@ let parse_ast =
     (* method! expression_desc = function | Pexp_constraint ({ pexp_desc; _ },
        _) -> super#expression_desc pexp_desc | arg -> super#expression_desc arg *)
 
-    method! open_infos _a
-        { popen_expr; popen_override; popen_loc; _ } =
+    method! open_infos _a { popen_expr; popen_override; popen_loc; _ } =
       let popen_expr = _a popen_expr in
       let popen_override = self#override_flag popen_override in
       let popen_loc = self#location popen_loc in
