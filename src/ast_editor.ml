@@ -121,7 +121,7 @@ let open_pp_doc ~document =
   in
   0
 
-let open_pp_pp_pp_doc ~document =
+let _open_pp_pp_pp_doc ~document =
   let open Promise.Syntax in
   let* doc =
     Workspace.openTextDocument
