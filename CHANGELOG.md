@@ -1,6 +1,10 @@
 # Change Log
 
-## Unreleased
+## 1.8.4
+
+- Fix inclusion of files in extension package
+
+## 1.8.3
 
 - Fix showing error message if ocaml-lsp is missing (#586)
 

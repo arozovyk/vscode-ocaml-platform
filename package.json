@@ -3,7 +3,7 @@
   "displayName": "OCaml Platform",
   "description": "Official OCaml Support from OCamlLabs",
   "license": "MIT",
-  "version": "1.8.2",
+  "version": "1.8.4",
   "publisher": "ocamllabs",
   "repository": {
     "type": "git",
@@ -15,7 +15,7 @@
   "homepage": "https://github.com/ocamllabs/vscode-ocaml-platform",
   "main": "./dist/vscode_ocaml_platform.bc.js",
   "engines": {
-    "vscode": "^1.55.0"
+    "vscode": "^1.56.0"
   },
   "categories": [
     "Programming Languages"
@@ -900,14 +900,14 @@
     "vscode-languageclient": "7.0.0"
   },
   "devDependencies": {
-    "@types/vscode": "1.55.0",
-    "esbuild": "0.11.16",
-    "fs-extra": "9.1.0",
+    "@types/vscode": "1.56.0",
+    "esbuild": "0.12.1",
+    "fs-extra": "10.0.0",
     "mocha": "7.2.0",
     "npm-run-all": "4.1.5",
     "ovsx": "0.1.0-next.97d460c",
-    "prettier": "2.2.1",
-    "vsce": "1.87.1",
+    "prettier": "2.3.0",
+    "vsce": "1.88.0",
     "vscode-test": "1.5.2"
   }
 }
