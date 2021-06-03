@@ -3,11 +3,11 @@ open Jsonoo.Encode
 
 let parse_ast =
   object (self)
-    inherit [Jsonoo.t] Ast_traverse.lift as super
+    inherit [Jsonoo.t] Traverse_ast.lift as super
 
     method unit () = null
 
-    method tuple args = list id args
+    method tuple args = object_ (("type", string "tuple") :: args)
 
     method string value = string value
 
@@ -15,7 +15,7 @@ let parse_ast =
 
     method bool value = bool value
 
-    method record args = object_ args
+    method record label args = object_ (("type", string label) :: args)
 
     method other _ = string "serializing other values is not supported yet"
 
@@ -27,10 +27,19 @@ let parse_ast =
 
     method int value = int value
 
+    method list f = list f
+
+    method option f o =
+      match o with
+      | Some x ->
+        let a = f x in
+        a
+      | None -> Jsonoo.Encode.object_ [ ("type", Jsonoo.Encode.string "None") ]
+
     method constr label args =
       match args with
       | [] -> object_ [ ("type", string label) ]
-      | _ -> object_ [ ("type", string label); ("", list id args) ]
+      | _ -> object_ (("type", string label) :: args)
 
     method char value = char value
 
@@ -51,7 +60,7 @@ let parse_ast =
       let popen_override = self#override_flag popen_override in
       let popen_loc = self#location popen_loc in
       let popen_attributes = null in
-      self#record
+      self#record "open_infos"
         [ ("popen_expr", popen_expr)
         ; ("popen_override", popen_override)
         ; ("popen_loc", popen_loc)
@@ -60,7 +69,18 @@ let parse_ast =
 
     method! structure s = object_ [ ("structure", list self#structure_item s) ]
 
-    method! list f = list f
+    (* method! class_infos : 'a . ('a -> Jsonoo.t) -> 'a class_infos ->
+       Jsonoo.t= fun _a -> fun { pci_virt; pci_params; pci_name; pci_expr;
+       pci_loc; pci_attributes } -> let pci_virt = self#virtual_flag pci_virt in
+       let pci_params = self#list (fun (a, b) -> let a = self#core_type a in let
+       b = (fun (a, b) -> let a = self#variance a in let b = self#injectivity b
+       in tuple2 id id (a,b)) b in tuple2 id id (a,b)) pci_params in let
+       pci_name = self#loc self#string pci_name in let pci_expr = _a pci_expr in
+       let pci_loc = self#location pci_loc in let pci_attributes =
+       self#attributes pci_attributes in self#record "class_infos" [("pci_virt",
+       pci_virt); ("pci_params", pci_params); ("pci_name", pci_name);
+       ("pci_expr", pci_expr); ("pci_loc", pci_loc); ("pci_attributes",
+       pci_attributes)] *)
   end
 
 let transform source =
