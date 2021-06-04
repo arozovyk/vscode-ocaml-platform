@@ -36,6 +36,7 @@ class virtual ['res] lift2 =
         let pos_lnum = self#int pos_lnum pos_lnum' in
         let pos_bol = self#int pos_bol pos_bol' in
         let pos_cnum = self#int pos_cnum pos_cnum' in
+        (*TODO double locs*)
         self#record "Lexing.position"
           [ ("pos_fname", pos_fname)
           ; ("pos_lnum", pos_lnum)
@@ -467,6 +468,11 @@ class virtual ['res] lift2 =
           let a = self#longident_loc a a' in
           let b = self#pattern b b' in
           self#constr "Ppat_open" [ ("longident_loc", a); ("pattern", b) ]
+          (*BEGIN SPECIAL PATTERN CASES*)
+        | Ppat_var _, Ppat_any -> self#pattern_desc x x
+        | Ppat_tuple [ exp1 ], ppat_desc' ->
+          self#pattern_desc x
+            (Ppat_tuple [ { exp1 with ppat_desc = ppat_desc' } ])
         | _ -> raise (Reparse_error "pattern_desc")
 
     method expression : expression -> expression -> 'res =
@@ -684,6 +690,98 @@ class virtual ['res] lift2 =
           self#constr "Pexp_extension" [ ("extension", a) ]
         | Pexp_unreachable, Pexp_unreachable ->
           self#constr "Pexp_unreachable" []
+          (*BEGIN SPECIAL CASES*)
+        | ( Pexp_apply (({ pexp_desc = Pexp_newtype _; _ } as exp1), al_exp_list)
+          , Pexp_newtype _ ) ->
+          self#expression_desc x
+            (Pexp_apply ({ exp1 with pexp_desc = x' }, al_exp_list))
+        | ( Pexp_newtype (a, b)
+          , Pexp_apply ({ pexp_desc = Pexp_newtype (a', b'); _ }, _) ) ->
+          let a = self#loc self#string a a' in
+          let b = self#expression b b' in
+          self#constr "Pexp_newtype" [ ("label loc", a); ("expression", b) ]
+        | ( Pexp_constraint (a, b)
+          , Pexp_apply ({ pexp_desc = Pexp_constraint (a', b'); _ }, _) ) ->
+          let a = self#expression a a' in
+          let b = self#core_type b b' in
+          self#constr "Pexp_constraint" [ ("expression", a); ("core_type", b) ]
+        | ( Pexp_open (a, b)
+          , Pexp_constraint ({ pexp_desc = Pexp_open (a', b'); _ }, _) ) ->
+          let a = self#open_declaration a a' in
+          let b = self#expression b b' in
+          self#constr "Pexp_open" [ ("open_declaration", a); ("expression", b) ]
+        | ( Pexp_fun (a, b, c, d)
+          , Pexp_apply ({ pexp_desc = Pexp_fun (a', b', c', d'); _ }, _) ) ->
+          let a = self#arg_label a a' in
+          let b = self#option self#expression b b' in
+          let c = self#pattern c c' in
+          let d = self#expression d d' in
+          self#constr "Pexp_fun"
+            [ ("arg_label", a)
+            ; ("expression option", b)
+            ; ("pattern", c)
+            ; ("expression", d)
+            ]
+        | ( Pexp_fun (a, b, c, d)
+          , Pexp_constraint ({ pexp_desc = Pexp_fun (a', b', c', d'); _ }, _) )
+          ->
+          let a = self#arg_label a a' in
+          let b = self#option self#expression b b' in
+          let c = self#pattern c c' in
+          let d = self#expression d d' in
+          self#constr "Pexp_fun"
+            [ ("arg_label", a)
+            ; ("expression option", b)
+            ; ("pattern", c)
+            ; ("expression", d)
+            ]
+        | pexp_desc, Pexp_constraint ({ pexp_desc = pexp_desc'; _ }, _) ->
+          self#expression_desc pexp_desc pexp_desc'
+        | pexp_desc, Pexp_poly ({ pexp_desc = pexp_desc'; _ }, _) ->
+          self#expression_desc pexp_desc pexp_desc'
+        | ( oexpr_desc
+          , Pexp_newtype
+              ( lloc1
+              , ({ pexp_desc =
+                     Pexp_newtype
+                       ( lloc2
+                       , ({ pexp_desc =
+                              Pexp_newtype
+                                ( lloc3
+                                , { pexp_desc =
+                                      Pexp_sequence
+                                        ( ({ pexp_desc =
+                                               Pexp_apply (e1, arg_lablel_e_list)
+                                           ; _
+                                           } as seqexp1)
+                                        , e2 )
+                                  ; _
+                                  } )
+                          ; _
+                          } as ntrec2) )
+                 ; _
+                 } as ntrec1) ) ) ->
+          let normalized_newtypes =
+            Pexp_newtype
+              ( lloc1
+              , { ntrec1 with
+                  pexp_desc =
+                    Pexp_newtype
+                      ( lloc2
+                      , { ntrec2 with pexp_desc = Pexp_newtype (lloc3, e1) } )
+                } )
+          in
+          let normalized_apply =
+            Pexp_apply
+              ({ e1 with pexp_desc = normalized_newtypes }, arg_lablel_e_list)
+          in
+          let normalized_pexp_desc2 =
+            Pexp_sequence ({ seqexp1 with pexp_desc = normalized_apply }, e2)
+          in
+          self#expression_desc oexpr_desc normalized_pexp_desc2
+        | Pexp_tuple [ exp1 ], pexp_desc' ->
+          self#expression_desc x
+            (Pexp_tuple [ { exp1 with pexp_desc = pexp_desc' } ])
         | _ -> raise (Reparse_error "expression_desc")
 
     method case : case -> case -> 'res =
