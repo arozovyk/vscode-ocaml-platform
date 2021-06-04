@@ -424,7 +424,18 @@ let onDidChangeTextDocument_listener event ~(document : TextDocument.t)
 
 let onDidSaveTextDocument_listener_pp document =
   (* let _ = open_pp_pp_pp_doc ~document in (); *)
-  on_origin_update_content document
+  let ppstruct = get_preprocessed_structure (get_pp_path ~document) in
+  let reparsed_json =
+    get_pp_pp_structure ~document |> Lexing.from_string |> Parse.implementation
+  in
+  try
+    let _ = Dumpast.reparse ppstruct reparsed_json in
+    print_endline "ok";
+    on_origin_update_content document
+  with
+
+  | Traverse_ast2.Reparse_error e -> print_endline ("Error at " ^ e)
+  | e -> print_endline (Exn.to_string e)
 
 let onDidReceiveMessage_listener msg ~(document : TextDocument.t) =
   if Ojs.has_property msg "selectedOutput" then

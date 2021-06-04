@@ -5,7 +5,7 @@ class virtual ['res] lift =
 object (self)
   method virtual  record : string ->  (string * 'res) list -> 'res
   method virtual  constr : string ->  (string * 'res) list -> 'rest
-  method virtual  tuple : 'res list -> 'res
+  method virtual  tuple : (string * 'res) list -> 'res (* TODO find a pretty way to output tuples *)
   method virtual  bool : bool -> 'res
   method virtual  char : char -> 'res
   method virtual  int : int -> 'res
@@ -133,7 +133,7 @@ object (self)
   method extension : extension -> 'res=
     fun (a, b) ->
       let a = self#loc self#string a in
-      let b = self#payload b in self#tuple [a; b]
+      let b = self#payload b in self#tuple [ ("label loc",a); ("payload",b) ]
   method attributes : attributes -> 'res= self#list self#attribute
   method payload : payload -> 'res=
     fun x ->
@@ -201,8 +201,8 @@ object (self)
         self#list
           (fun (a, b) ->
              let a = self#longident_loc a in
-             let b = self#core_type b in self#tuple [a; b]) b in
-      self#tuple [a; b]
+             let b = self#core_type b in self#tuple [ ("longident_loc",a); ("core_type",b) ]) b in
+      self#tuple [ ("longident_loc",a); ("(longident_loc * core_type) list",b) ]
   method row_field : row_field -> 'res=
     fun { prf_desc; prf_loc; prf_attributes } ->
       let prf_desc = self#row_field_desc prf_desc in
@@ -279,7 +279,7 @@ object (self)
             self#list
               (fun (a, b) ->
                  let a = self#longident_loc a in
-                 let b = self#pattern b in self#tuple [a; b]) a in
+                 let b = self#pattern b in self#tuple [ ("longident_loc",a); ("pattern",b) ]) a in
           let b = self#closed_flag b in self#constr "Ppat_record" [("(longident_loc * pattern) list",a); ("closed_flag",b)]
       | Ppat_array a ->
           let a = self#list self#pattern a in self#constr "Ppat_array" [("pattern list",a)]
@@ -338,7 +338,7 @@ object (self)
             self#list
               (fun (a, b) ->
                  let a = self#arg_label a in
-                 let b = self#expression b in self#tuple [a; b]) b in
+                 let b = self#expression b in self#tuple [ ("arg_label",a); ("expression",b) ]) b in
           self#constr "Pexp_apply" [("expression",a); ("(arg_label * expression) list",b)]
       | Pexp_match (a, b) ->
           let a = self#expression a in
@@ -362,7 +362,7 @@ object (self)
             self#list
               (fun (a, b) ->
                  let a = self#longident_loc a in
-                 let b = self#expression b in self#tuple [a; b]) a in
+                 let b = self#expression b in self#tuple [ ("longident_loc",a); ("expression",b) ]) a in
           let b = self#option self#expression b in
           self#constr "Pexp_record" [("(longident_loc * expression) list",a); ("expression option",b)]
       | Pexp_field (a, b) ->
@@ -414,7 +414,7 @@ object (self)
             self#list
               (fun (a, b) ->
                  let a = self#loc self#label a in
-                 let b = self#expression b in self#tuple [a; b]) a in
+                 let b = self#expression b in self#tuple [ ("label loc",a); ("expression",b) ]) a in
           self#constr "Pexp_override" [("(label loc * expression) list",a)]
       | Pexp_letmodule (a, b, c) ->
           let a = self#loc (self#option self#string) a in
@@ -498,14 +498,14 @@ object (self)
              let b =
                (fun (a, b) ->
                   let a = self#variance a in
-                  let b = self#injectivity b in self#tuple [a; b]) b in
-             self#tuple [a; b]) ptype_params in
+                  let b = self#injectivity b in self#tuple [ ("variance",a); ("injectivity",b) ]) b in
+             self#tuple [ ("core_type",a); ("(variance * injectivity)",b) ]) ptype_params in
       let ptype_cstrs =
         self#list
           (fun (a, b, c) ->
              let a = self#core_type a in
              let b = self#core_type b in
-             let c = self#location c in self#tuple [a; b; c]) ptype_cstrs in
+             let c = self#location c in self#tuple [ ("core_type1",a); ("core_type2",b); ("location",c) ]) ptype_cstrs in
       let ptype_kind = self#type_kind ptype_kind in
       let ptype_private = self#private_flag ptype_private in
       let ptype_manifest = self#option self#core_type ptype_manifest in
@@ -579,8 +579,8 @@ object (self)
              let b =
                (fun (a, b) ->
                   let a = self#variance a in
-                  let b = self#injectivity b in self#tuple [a; b]) b in
-             self#tuple [a; b]) ptyext_params in
+                  let b = self#injectivity b in self#tuple [ ("variance",a); ("injectivity",b) ]) b in
+             self#tuple [ ("core_type",a); ("(variance * injectivity)",b) ]) ptyext_params in
       let ptyext_constructors =
         self#list self#extension_constructor ptyext_constructors in
       let ptyext_private = self#private_flag ptyext_private in
@@ -677,7 +677,7 @@ object (self)
                let a = self#loc self#label a in
                let b = self#mutable_flag b in
                let c = self#virtual_flag c in
-               let d = self#core_type d in self#tuple [a; b; c; d]) a in
+               let d = self#core_type d in self#tuple [ ("label loc",a); ("mutable_flag",b); ("virtual_flag",c); ("core_type",d) ]) a in
           self#constr "Pctf_val" [("(label loc * mutable_flag * virtual_flag * core_type)",a)] 
       | Pctf_method a ->
           let a =
@@ -685,13 +685,13 @@ object (self)
                let a = self#loc self#label a in
                let b = self#private_flag b in
                let c = self#virtual_flag c in
-               let d = self#core_type d in self#tuple [a; b; c; d]) a in
+               let d = self#core_type d in self#tuple [ ("label loc ",a); ("private_flag",b); ("virtual_flag",c); ("core_type",d) ]) a in
           self#constr "Pctf_method" [("(label loc * private_flag * virtual_flag * core_type)",a)]
       | Pctf_constraint a ->
           let a =
             (fun (a, b) ->
                let a = self#core_type a in
-               let b = self#core_type b in self#tuple [a; b]) a in
+               let b = self#core_type b in self#tuple [ ("core_type1",a); ("core_type2",b) ]) a in
           self#constr "Pctf_constraint" [("(core_type * core_type)",a)]
       | Pctf_attribute a ->
           let a = self#attribute a in self#constr "Pctf_attribute" [("attribute",a)]
@@ -711,8 +711,8 @@ object (self)
                let b =
                  (fun (a, b) ->
                     let a = self#variance a in
-                    let b = self#injectivity b in self#tuple [a; b]) b in
-               self#tuple [a; b]) pci_params in
+                    let b = self#injectivity b in self#tuple [ ("variance",a); ("injectivity",b) ]) b in
+               self#tuple [ ("core_type",a); ("(variance * injectivity)",b) ]) pci_params in
         let pci_name = self#loc self#string pci_name in
         let pci_expr = _a pci_expr in
         let pci_loc = self#location pci_loc in
@@ -757,7 +757,7 @@ object (self)
             self#list
               (fun (a, b) ->
                  let a = self#arg_label a in
-                 let b = self#expression b in self#tuple [a; b]) b in
+                 let b = self#expression b in self#tuple [ ("arg_label",a); ("expression",b) ]) b in
           self#constr "Pcl_apply" [("class_expr",a); ("(arg_label * expression) list",b)]
       | Pcl_let (a, b, c) ->
           let a = self#rec_flag a in
@@ -799,20 +799,20 @@ object (self)
             (fun (a, b, c) ->
                let a = self#loc self#label a in
                let b = self#mutable_flag b in
-               let c = self#class_field_kind c in self#tuple [a; b; c]) a in
+               let c = self#class_field_kind c in self#tuple [ ("label loc",a); ("mutable_flag",b); ("class_field_kind",c) ]) a in
           self#constr "Pcf_val" [("(label loc * mutable_flag * class_field_kind)",a)]
       | Pcf_method a ->
           let a =
             (fun (a, b, c) ->
                let a = self#loc self#label a in
                let b = self#private_flag b in
-               let c = self#class_field_kind c in self#tuple [a; b; c]) a in
+               let c = self#class_field_kind c in self#tuple [ ("label loc",a); ("private_flag",b); ("class_field_kind",c) ]) a in
           self#constr "Pcf_method" [("(label loc * private_flag * class_field_kind)",a)]
       | Pcf_constraint a ->
           let a =
             (fun (a, b) ->
                let a = self#core_type a in
-               let b = self#core_type b in self#tuple [a; b]) a in
+               let b = self#core_type b in self#tuple [ ("core_type1",a); ("core_type2",b) ]) a in
           self#constr "Pcf_constraint" [("(core_type * core_type)",a)]
       | Pcf_initializer a ->
           let a = self#expression a in self#constr "Pcf_initializer" [("expression",a)]

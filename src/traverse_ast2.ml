@@ -4,6 +4,8 @@ exception Reparse_error of string
 
 class virtual ['res] lift2 =
   object (self)
+(*     constraint 'res = Jsonoo.t
+ *)
     method virtual tuple : (string * 'res) list -> 'res
 
     method virtual option
@@ -13,7 +15,7 @@ class virtual ['res] lift2 =
 
     method virtual char : char -> char -> 'res
 
-    method virtual constr : string -> (string * 'res) list -> 'rest
+    method virtual constr : string -> (string * 'res) list -> 'res
 
     method virtual int : int -> int -> 'res
 
@@ -36,6 +38,9 @@ class virtual ['res] lift2 =
         let pos_lnum = self#int pos_lnum pos_lnum' in
         let pos_bol = self#int pos_bol pos_bol' in
         let pos_cnum = self#int pos_cnum pos_cnum' in
+      (*   print_endline
+          ("Locs are : " ^ Int.to_string pos_cnum ^ " - "
+         ^ Int.to_string pos_cnum'); *)
         (*TODO double locs*)
         self#record "Lexing.position"
           [ ("pos_fname", pos_fname)
@@ -689,8 +694,7 @@ class virtual ['res] lift2 =
           let a = self#extension a a' in
           self#constr "Pexp_extension" [ ("extension", a) ]
         | Pexp_unreachable, Pexp_unreachable ->
-          self#constr "Pexp_unreachable" []
-          (*BEGIN SPECIAL CASES*)
+          self#constr "Pexp_unreachable" [] (*BEGIN SPECIAL CASES*)
         | ( Pexp_apply (({ pexp_desc = Pexp_newtype _; _ } as exp1), al_exp_list)
           , Pexp_newtype _ ) ->
           self#expression_desc x
