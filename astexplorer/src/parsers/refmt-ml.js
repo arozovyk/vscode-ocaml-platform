@@ -61,6 +61,14 @@ export default {
   nodeToRange(node) {
     const locKey = locKeys.find(key => Object.prototype.hasOwnProperty.call(node, key));
     if (locKey) {
+      /* if (node[locKey].real_loc_start != undefined) {
+        console(node[locKey]);
+        console("we gucci");
+      } */
+      if (node[locKey].real_loc_start != undefined) {
+        console.log("we gucci");
+        console.log(node[locKey].real_loc_start);
+      } 
       const range = [
         node[locKey].loc_start.pos_cnum,
         node[locKey].loc_end.pos_cnum,

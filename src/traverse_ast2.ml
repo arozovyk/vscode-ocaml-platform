@@ -4,8 +4,7 @@ exception Reparse_error of string
 
 class virtual ['res] lift2 =
   object (self)
-(*     constraint 'res = Jsonoo.t
- *)
+    (* constraint 'res = Jsonoo.t *)
     method virtual tuple : (string * 'res) list -> 'res
 
     method virtual option
@@ -38,9 +37,8 @@ class virtual ['res] lift2 =
         let pos_lnum = self#int pos_lnum pos_lnum' in
         let pos_bol = self#int pos_bol pos_bol' in
         let pos_cnum = self#int pos_cnum pos_cnum' in
-      (*   print_endline
-          ("Locs are : " ^ Int.to_string pos_cnum ^ " - "
-         ^ Int.to_string pos_cnum'); *)
+        (* print_endline ("Locs are : " ^ Int.to_string pos_cnum ^ " - " ^
+           Int.to_string pos_cnum'); *)
         (*TODO double locs*)
         self#record "Lexing.position"
           [ ("pos_fname", pos_fname)
@@ -62,7 +60,13 @@ class virtual ['res] lift2 =
           ]
 
     method location_stack : location_stack -> location_stack -> 'res =
-      self#list self#location
+      fun l l' ->
+        
+        (*Reparsing adds/removes location_stack*)
+        match (l, l') with
+        | [], _ :: _ -> self#list self#location l' l'
+        | _ :: _, [] -> self#list self#location l l
+        | _ -> self#list self#location l l'
 
     method loc : 'a. ('a -> 'a -> 'res) -> 'a loc -> 'a loc -> 'res =
       fun _a { txt; loc } { txt = txt'; loc = loc' } ->
@@ -1734,7 +1738,15 @@ class virtual ['res] lift2 =
         | _ -> raise (Reparse_error "module_expr_desc")
 
     method structure : structure -> structure -> 'res =
-      self#list self#structure_item
+      (*Fixme: additional structure item inside ppml (ppx show for instance)*)
+      fun l l' ->
+        (* print_endline "sizes:";
+        print_endline (Int.to_string (List.length l));
+        print_endline (Int.to_string (List.length l'));
+        if List.length l = List.length l' + 1 then
+          self#list self#structure_item l (List.hd l :: l')
+        else *)
+          self#list self#structure_item l l'
 
     method structure_item : structure_item -> structure_item -> 'res =
       fun { pstr_desc; pstr_loc }

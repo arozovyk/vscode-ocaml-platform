@@ -1,4 +1,11 @@
 open Ppxlib
+open Stdio
+
+let write_to_file content path =
+  let tmp_path = path in
+  let oc = Out_channel.create tmp_path in
+  Out_channel.fprintf oc "%s\n" content;
+  Out_channel.close oc
 
 (* let _ = raise (Traverse_ast2.Reparse_error ""); *)
 let reparse_ast =
@@ -35,7 +42,12 @@ let reparse_ast =
 
     method list f l l' =
       (*FIXME different length?*)
-      List.map2 f l l' |> Jsonoo.Encode.list (fun x -> x)
+      if List.length l > List.length l' then
+        List.map2 f l l |> Jsonoo.Encode.list (fun x -> x)
+      else if List.length l < List.length l' then
+        List.map2 f l' l' |> Jsonoo.Encode.list (fun x -> x)
+      else
+        List.map2 f l l' |> Jsonoo.Encode.list (fun x -> x)
 
     method option f o o' =
       match (o, o') with
@@ -59,14 +71,40 @@ let reparse_ast =
           { loc_start = loc_start'; loc_end = loc_end'; loc_ghost = loc_ghost' } ->
         (* print_endline (" locs are " ^ Int.to_string loc_start.pos_cnum^" " ^
            Int.to_string loc_start'.pos_cnum); *)
-        let loc_start = super#position loc_start loc_start' in
-        let loc_end = super#position loc_end loc_end' in
+        let loc_start = super#position loc_start loc_start in
+        let real_loc_start = super#position loc_start' loc_start' in
+        let loc_end = super#position loc_end loc_end in
+        let real_loc_end = super#position loc_end' loc_end' in
         let loc_ghost = self#bool loc_ghost loc_ghost' in
         self#record "Location.t"
           [ ("loc_start", loc_start)
+          ; ("real_loc_start", real_loc_start)
           ; ("loc_end", loc_end)
+          ; ("real_loc_end", real_loc_end)
           ; ("loc_ghost", loc_ghost)
           ]
+
+    method! open_infos _a { popen_expr; popen_override; popen_loc; _ }
+        { popen_expr = popen_expr'
+        ; popen_override = popen_override'
+        ; popen_loc = popen_loc'
+        ; _
+        } =
+      let popen_expr = _a popen_expr popen_expr' in
+      let popen_override = self#override_flag popen_override popen_override' in
+      let popen_loc = self#location popen_loc popen_loc' in
+      let popen_attributes = Jsonoo.Encode.null in
+      (*FIXME*)
+      self#record "open_infos"
+        [ ("popen_expr", popen_expr)
+        ; ("popen_override", popen_override)
+        ; ("popen_loc", popen_loc)
+        ; ("popen_attributes", popen_attributes)
+        ]
+    (* method! structure_item { pstr_desc; pstr_loc }{ pstr_desc=pstr_desc';
+       pstr_loc=pstr_loc' } = object_ [ ("type", string "structure_item") ;
+       ("pstr_desc", super#structure_item_desc pstr_desc) ; ("pstr_loc",
+       super#location pstr_loc) ] *)
     (* method array f arg = list id (Array.to_list arg |> List.map f) *)
     (* method! structure_item { pstr_desc; pstr_loc } = object_ [ ("type",
        string "structure_item") ; ("pstr_desc", super#structure_item_desc
@@ -138,16 +176,13 @@ let parse_ast =
 
     method array f arg = list id (Array.to_list arg |> List.map f)
 
-    method! structure_item { pstr_desc; pstr_loc } =
-      object_
-        [ ("type", string "structure_item")
-        ; ("pstr_desc", super#structure_item_desc pstr_desc)
-        ; ("pstr_loc", super#location pstr_loc)
-        ]
+    (* method! structure_item { pstr_desc; pstr_loc } = object_ [ ("type",
+       string "structure_item") ; ("pstr_desc", super#structure_item_desc
+       pstr_desc) ; ("pstr_loc", super#location pstr_loc) ] *)
 
     (* method! expression_desc = function | Pexp_constraint ({ pexp_desc; _ },
        _) -> super#expression_desc pexp_desc | arg -> super#expression_desc arg *)
-
+    (*FIXME*)
     method! open_infos _a { popen_expr; popen_override; popen_loc; _ } =
       let popen_expr = _a popen_expr in
       let popen_override = self#override_flag popen_override in
@@ -160,8 +195,8 @@ let parse_ast =
         ; ("popen_attributes", popen_attributes)
         ]
 
-    method! structure s = object_ [ ("structure", list self#structure_item s) ]
-
+    (* method! structure s = object_ [ ("structure", list self#structure_item s)
+       ] *)
     (* method! class_infos : 'a . ('a -> Jsonoo.t) -> 'a class_infos ->
        Jsonoo.t= fun _a -> fun { pci_virt; pci_params; pci_name; pci_expr;
        pci_loc; pci_attributes } -> let pci_virt = self#virtual_flag pci_virt in

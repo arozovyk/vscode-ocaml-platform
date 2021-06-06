@@ -3,5 +3,6 @@
  (libraries base stdio gen_js_api js_of_ocaml jsonoo node opam-file-format
    promise_jsoo vscode vscode_languageclient ppxlib)
  (modes js)
+ (preprocess (pps ppx_deriving.std))
  (js_of_ocaml
   (flags --source-map --pretty)))

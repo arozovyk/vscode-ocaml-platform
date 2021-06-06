@@ -27,6 +27,13 @@ class Index extends React.Component {
         treeAdapter: this.state.treeAdapter,
       },
     };
+    window.addEventListener("contextmenu", (event) => {
+      event.preventDefault();
+      const xPos = event.pageX + "px";
+      const yPos = event.pageY + "px";
+      console.log(xPos);
+      console.log(yPos);
+    });
     window.addEventListener("message", (event) => {
       switch (event.data.type) {
         case "parse":
