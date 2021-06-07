@@ -443,8 +443,6 @@ let onDidSaveTextDocument_listener_pp document =
   let reparsed_json =
     get_pp_pp_structure ~document |> Lexing.from_string |> Parse.implementation
   in
-  (* write_to_file (Ast.show_structure ppstruct) "/tmp/ppml"; write_to_file
-     (Ast.show_structure reparsed_json) "/tmp/reparsed"; *)
   try
     let res = Dumpast.reparse ppstruct reparsed_json in
     print_endline "ok";
@@ -457,7 +455,6 @@ let onDidSaveTextDocument_listener_pp document =
   | Traverse_ast2.Reparse_error e -> print_endline ("Error at " ^ e)
   | e -> print_endline (Exn.to_string e)
 
-(* on_origin_update_content document *)
 let onDidReceiveMessage_listener msg ~(document : TextDocument.t) =
   if Ojs.has_property msg "selectedOutput" then
     original_mode := not !original_mode
@@ -468,19 +465,24 @@ let onDidReceiveMessage_listener msg ~(document : TextDocument.t) =
     let cend =
       Int.of_string (Ojs.string_of_js (Ojs.get_prop_ascii msg "end"))
     in
-    (* Stdio.print_endline ("Range : "^(Int.to_string cbegin)^","^(Int.to_string
-       cend)); *)
-    let f editor =
-      let visible_doc = TextEditor.document editor in
-      (!original_mode && document_eq document visible_doc)
-      || (not !original_mode)
-         && entry_exists (doc_string_uri ~document)
+    let maybe_pair_editors =
+      List.map (Vscode.Window.visibleTextEditors ()) (fun editor ->
+          let visible_doc = TextEditor.document editor in
+          if (* !original_mode && *) document_eq document visible_doc then
+            (Some editor, None)
+          else if
+            (* (not !original_mode) && *)
+            (entry_exists (doc_string_uri ~document))
               (doc_string_uri ~document:visible_doc)
+          then
+            (None, Some editor)
+          else
+            (None, None))
+      |> List.filter ~f:(function
+           | None, None -> false
+           | _ -> true)
     in
-    let visibleTextEditors =
-      List.filter (Vscode.Window.visibleTextEditors ()) ~f
-    in
-    let apply_selection editor =
+    let apply_selection editor cbegin cend =
       let document = TextEditor.document editor in
       let anchor = Vscode.TextDocument.positionAt document ~offset:cbegin in
       let active = Vscode.TextDocument.positionAt document ~offset:cend in
@@ -493,8 +495,23 @@ let onDidReceiveMessage_listener msg ~(document : TextDocument.t) =
       let _ = TextEditor.selections editor in
       ()
     in
-    print_endline ("bool is: "^(Bool.to_string (Ojs.has_property msg "r_begin")));
-    List.iter ~f:apply_selection visibleTextEditors
+    List.iter
+      ~f:(fun e ->
+        match e with
+        | Some editor, None -> apply_selection editor cbegin cend
+        | None, Some editor
+          when Ojs.has_property msg "r_begin"
+               && Ojs.has_property msg "r_end"
+               && not !original_mode ->
+          let rcbegin =
+            Int.of_string (Ojs.string_of_js (Ojs.get_prop_ascii msg "r_begin"))
+          in
+          let rcend =
+            Int.of_string (Ojs.string_of_js (Ojs.get_prop_ascii msg "r_end"))
+          in
+          apply_selection editor rcbegin rcend
+        | _ -> ())
+      maybe_pair_editors
   else
     ()
 
