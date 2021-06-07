@@ -453,7 +453,7 @@ let onDidReceiveMessage_listener msg ~(document : TextDocument.t) =
       Int.of_string (Ojs.string_of_js (Ojs.get_prop_ascii msg "end"))
     in
     let maybe_pair_editors =
-      List.map (Vscode.Window.visibleTextEditors ()) (fun editor ->
+      List.map (Vscode.Window.visibleTextEditors ()) ~f:(fun editor ->
           let visible_doc = TextEditor.document editor in
           if (* !original_mode && *) document_eq document visible_doc then
             (Some editor, None)

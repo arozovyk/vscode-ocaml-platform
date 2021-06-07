@@ -1,13 +1,6 @@
 open Ppxlib
-open Stdio
 
-let write_to_file content path =
-  let tmp_path = path in
-  let oc = Out_channel.create tmp_path in
-  Out_channel.fprintf oc "%s\n" content;
-  Out_channel.close oc
 
-(* let _ = raise (Traverse_ast2.Reparse_error ""); *)
 let reparse_ast =
   object (self)
     inherit [Jsonoo.t] Traverse_ast2.lift2 as super
@@ -134,7 +127,7 @@ open Jsonoo.Encode
 
 let parse_ast =
   object (self)
-    inherit [Jsonoo.t] Traverse_ast.lift as super
+    inherit [Jsonoo.t] Traverse_ast.lift 
 
     method unit () = null
 
