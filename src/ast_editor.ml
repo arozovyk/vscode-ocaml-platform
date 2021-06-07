@@ -87,28 +87,21 @@ let transform_to_ast ~(document : TextDocument.t) ~(webview : WebView.t) =
     try
       (*The following would return the structure with ghost_locs*)
       let ppml_structure = get_preprocessed_structure (get_pp_path ~document) in
-      let ppml_json = Dumpast.from_structure ppml_structure in
+      (* let ppml_json = Dumpast.from_structure ppml_structure in *)
       let pp_code = get_pp_pp_structure ~document in
       let reparsed_structure =
         pp_code |> Lexing.from_string |> Parse.implementation
       in
-      print_endline "before reparsing";
-      write_to_file (Jsonoo.stringify ppml_json) "/tmp/ppml1";
-      write_to_file
-        (Jsonoo.stringify (Dumpast.transform pp_code))
-        "/tmp/reparsed2";
+      (* print_endline "before reparsing"; write_to_file (Jsonoo.stringify
+         ppml_json) "/tmp/ppml1"; write_to_file (Jsonoo.stringify
+         (Dumpast.transform pp_code)) "/tmp/reparsed2"; *)
       let reparsed_json = Dumpast.reparse ppml_structure reparsed_structure in
       write_to_file (Jsonoo.stringify reparsed_json) "/tmp/reparsed_json";
-
-      print_endline "we reparsed it";
-      (* let reparsed_json = Dumpast.transform (get_pp_pp_structure ~document)
-         in *)
       reparsed_json
       (* Use only the actual locations while waiting on the bug fix where
          reparsing returns two different ASTs, most likely due to the AST
          version difference (resulting from the use of OMP with Pprintast ?) *)
     with
-    | Sys_error _ -> null
     | e ->
       print_endline (Exn.to_string e);
       null
@@ -438,22 +431,16 @@ let onDidChangeTextDocument_listener event ~(document : TextDocument.t)
     ()
 
 let onDidSaveTextDocument_listener_pp document =
-  (* let _ = open_pp_pp_pp_doc ~document in (); *)
-  let ppstruct = get_preprocessed_structure (get_pp_path ~document) in
-  let reparsed_json =
-    get_pp_pp_structure ~document |> Lexing.from_string |> Parse.implementation
-  in
-  try
-    let res = Dumpast.reparse ppstruct reparsed_json in
-    print_endline "ok";
-    write_to_file
-      (Jsonoo.stringify (Dumpast.from_structure ppstruct))
-      "/tmp/origin_res";
-    write_to_file (Jsonoo.stringify res) "/tmp/result";
-    on_origin_update_content document
-  with
-  | Traverse_ast2.Reparse_error e -> print_endline ("Error at " ^ e)
-  | e -> print_endline (Exn.to_string e)
+  on_origin_update_content document
+
+(* let _ = o(* pen_pp_pp_pp_doc ~document in (); *) let ppstruct =
+   get_preprocessed_structure (get_pp_path ~document) in let reparsed_json =
+   get_pp_pp_structure ~document |> Lexing.from_string |> Parse.implementation
+   in try let res = Dumpast.reparse ppstruct reparsed_json in print_endline
+   "ok"; write_to_file (Jsonoo.stringify (Dumpast.from_structure ppstruct))
+   "/tmp/origin_res"; write_to_file (Jsonoo.stringify res) "/tmp/result"; with |
+   Traverse_ast2.Reparse_error e -> print_endline ("Error at " ^ e) | e ->
+   print_endline (Exn.to_string e) *)
 
 let onDidReceiveMessage_listener msg ~(document : TextDocument.t) =
   if Ojs.has_property msg "selectedOutput" then

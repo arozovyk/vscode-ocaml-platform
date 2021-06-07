@@ -75,8 +75,6 @@ export default {
           node[locKey].loc_start.pos_cnum,
           node[locKey].loc_end.pos_cnum,
         ]
-        console.log("inside node to range");
-        console.log(range.length);
       return range;
     }
   },

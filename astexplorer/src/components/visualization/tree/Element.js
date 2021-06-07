@@ -167,8 +167,6 @@ const Element = React.memo(function Element({
 
   // enable highlight on hover if node has a range
   if (range && level !== 0) {
-    console.log("range is");
-    console.log(range.length);
     onMouseOver = event => {
       event.stopPropagation();
       if (!(range === null)) {

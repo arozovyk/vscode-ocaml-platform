@@ -38,10 +38,6 @@ class TreeAdapter {
     const { nodeToRange } = this._adapterOptions;
     let range = nodeToRange(node);
     /* if (node && typeof node === 'object') {
-      console.log("we put this ")
-      console.log(node)
-      console.log("with this range")
-      console.log(range)
       this._ranges.set(node, range);
     } */
 

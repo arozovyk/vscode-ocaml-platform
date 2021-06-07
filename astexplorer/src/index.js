@@ -31,7 +31,7 @@ class Index extends React.Component {
       event.preventDefault();
       const xPos = event.pageX + "px";
       const yPos = event.pageY + "px";
-      console.log(xPos);
+      console.log(xPos); /* TODO rightclick action */
       console.log(yPos);
     });
     window.addEventListener("message", (event) => {
