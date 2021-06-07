@@ -7,7 +7,7 @@ import { useSelectedNode } from '../SelectedNodeContext.js';
 import focusNodes from '../focusNodes.js'
 import cx from '../../../utils/classnames.js';
 import stringify from '../../../utils/stringify';
-import {vscode} from '../../../vscode.js'
+import { vscode } from '../../../vscode.js'
 
 const { useState, useRef, useMemo, useCallback, useEffect } = React;
 function usePrevious(value, initialValue) {
@@ -161,19 +161,36 @@ const Element = React.memo(function Element({
   );
 
   const range = treeAdapter.getRange(value);
+
   let onMouseOver;
   let onMouseLeave;
 
   // enable highlight on hover if node has a range
   if (range && level !== 0) {
+    console.log("range is");
+    console.log(range.length);
     onMouseOver = event => {
       event.stopPropagation();
       if (!(range === null)) {
-        vscode.postMessage({
-          begin: range[0].toString(),
-          end: range[1].toString()/* ,
-          selectedOutput: selectedOutput.toString() */
-        });
+        if (range.length == 2) {
+          vscode.postMessage({
+            begin: range[0].toString(),
+            end: range[1].toString()/* ,
+            selectedOutput: selectedOutput.toString() */
+          });
+        }
+
+        if (range.length == 4) {
+          vscode.postMessage({
+            begin: range[0].toString(),
+            end: range[1].toString(),
+            r_begin: range[2].toString(),
+            r_end: range[3].toString(),
+          });
+        }
+
+
+
       }
     };
 

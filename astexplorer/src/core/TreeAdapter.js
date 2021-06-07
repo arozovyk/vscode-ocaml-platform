@@ -31,15 +31,20 @@ class TreeAdapter {
   getRange(node) {
     if (node == null) {
       return null;
-    }
-    if (this._ranges.has(node)) {
+    }//FIXME
+    /* if (this._ranges.has(node)) {
       return this._ranges.get(node);
-    }
+    } */
     const { nodeToRange } = this._adapterOptions;
     let range = nodeToRange(node);
-    if (node && typeof node === 'object') {
+    /* if (node && typeof node === 'object') {
+      console.log("we put this ")
+      console.log(node)
+      console.log("with this range")
+      console.log(range)
       this._ranges.set(node, range);
-    }
+    } */
+
     return range;
   }
 

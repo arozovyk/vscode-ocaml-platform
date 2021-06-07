@@ -493,7 +493,7 @@ let onDidReceiveMessage_listener msg ~(document : TextDocument.t) =
       let _ = TextEditor.selections editor in
       ()
     in
-
+    print_endline ("bool is: "^(Bool.to_string (Ojs.has_property msg "r_begin")));
     List.iter ~f:apply_selection visibleTextEditors
   else
     ()

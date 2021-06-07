@@ -65,14 +65,18 @@ export default {
         console(node[locKey]);
         console("we gucci");
       } */
-      if (node[locKey].real_loc_start != undefined) {
-        console.log("we gucci");
-        console.log(node[locKey].real_loc_start);
-      } 
-      const range = [
+      const range = (node[locKey].real_loc_start != undefined) ? [
         node[locKey].loc_start.pos_cnum,
         node[locKey].loc_end.pos_cnum,
-      ];
+        node[locKey].real_loc_start.pos_cnum,
+        node[locKey].real_loc_end.pos_cnum,
+      ]
+        : [
+          node[locKey].loc_start.pos_cnum,
+          node[locKey].loc_end.pos_cnum,
+        ]
+        console.log("inside node to range");
+        console.log(range.length);
       return range;
     }
   },
