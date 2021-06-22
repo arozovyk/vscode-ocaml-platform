@@ -2,7 +2,6 @@ open Import
 open Ppx_utils
 
 (*Indicates the output mode in order to highlight the right document*)
-open Stdio
 
 let original_mode = ref true
 
@@ -48,14 +47,11 @@ let on_origin_update_content changed_document =
   | None -> ()
 
 (*for debugging purposes*)
-let _print_state () =
-  print_endline "State: ";
-  Map.iteri !pp_doc_to_changed_origin_map ~f:(fun ~key ~data ->
-      print_string ("(" ^ key ^ "," ^ Bool.to_string data ^ ")"));
-  print_endline "";
-  Map.iteri !origin_to_pp_doc_map ~f:(fun ~key ~data ->
-      print_string ("(" ^ key ^ "," ^ data ^ ")"));
-  print_endline ""
+(* let _print_state () = print_endline "State: "; Map.iteri
+   !pp_doc_to_changed_origin_map ~f:(fun ~key ~data -> print_string ("(" ^ key ^
+   "," ^ Bool.to_string data ^ ")")); print_endline ""; Map.iteri
+   !origin_to_pp_doc_map ~f:(fun ~key ~data -> print_string ("(" ^ key ^ "," ^
+   data ^ ")")); print_endline "" *)
 
 let send_msg t value ~(webview : WebView.t) =
   let msg = Ojs.empty_obj () in
@@ -71,13 +67,11 @@ let document_eq a b =
 
 let get_html_for_WebView_from_file () =
   let filename = Node.__dirname () ^ "/../astexplorer/dist/index.html" in
-  In_channel.read_all filename
+  Fs.readFile filename
 
-let write_to_file content path =
-  let tmp_path = path in
-  let oc = Out_channel.create tmp_path in
-  Out_channel.fprintf oc "%s\n" content;
-  Out_channel.close oc
+(* let write_to_file content path = let tmp_path = path in let oc =
+   Out_channel.create tmp_path in Out_channel.fprintf oc "%s\n" content;
+   Out_channel.close oc *)
 
 let transform_to_ast ~(document : TextDocument.t) ~(webview : WebView.t) =
   let open Jsonoo.Encode in
@@ -96,15 +90,13 @@ let transform_to_ast ~(document : TextDocument.t) ~(webview : WebView.t) =
          ppml_json) "/tmp/ppml1"; write_to_file (Jsonoo.stringify
          (Dumpast.transform pp_code)) "/tmp/reparsed2"; *)
       let reparsed_json = Dumpast.reparse ppml_structure reparsed_structure in
-      write_to_file (Jsonoo.stringify reparsed_json) "/tmp/reparsed_json";
+      (* write_to_file (Jsonoo.stringify reparsed_json) "/tmp/reparsed_json"; *)
       reparsed_json
       (* Use only the actual locations while waiting on the bug fix where
          reparsing returns two different ASTs, most likely due to the AST
          version difference (resulting from the use of OMP with Pprintast ?) *)
     with
-    | e ->
-      print_endline (Exn.to_string e);
-      null
+    | _ -> (* print_endline (Exn.to_string e); *) null
   in
   let astpair = object_ [ ("ast", origin_json); ("pp_ast", pp_value) ] in
   send_msg "parse" (Jsonoo.t_to_js astpair) ~webview
@@ -522,7 +514,11 @@ let resolveCustomTextEditor ~(document : TextDocument.t) ~webviewPanel ~token :
       ~listener:(onDidReceiveMessage_listener ~document)
       ()
   in
-  WebView.set_html webview (get_html_for_WebView_from_file ());
+  let _ =
+    let open Promise.Syntax in
+    let+ r = get_html_for_WebView_from_file () in
+    WebView.set_html webview r
+  in
   let _ =
     Workspace.onDidChangeTextDocument
       ~listener:(onDidChangeTextDocument_listener ~webview ~document)
