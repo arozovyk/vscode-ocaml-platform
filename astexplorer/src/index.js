@@ -19,7 +19,7 @@ class Index extends React.Component {
         time: 120,
         treeAdapter: this.state.treeAdapter,
       },
-      position: 0,
+      position: -2,
       ppAstResult: {
         ast: null,
         error: null,
