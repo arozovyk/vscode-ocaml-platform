@@ -22,7 +22,7 @@ function initSettings() {
       hideFunctions: true,
       hideEmptyKeys: false,
       hideLocationData: false,
-      hideTypeKeys: false,
+      hideTypeKeys: true,
     };
 }
 
