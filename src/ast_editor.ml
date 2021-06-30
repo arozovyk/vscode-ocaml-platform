@@ -101,20 +101,40 @@ let transform_to_ast ~(document : TextDocument.t) ~(webview : WebView.t) =
   let astpair = object_ [ ("ast", origin_json); ("pp_ast", pp_value) ] in
   send_msg "parse" (Jsonoo.t_to_js astpair) ~webview
 
+let replace_document_content ~document ~content =
+  let first_line = TextDocument.lineAt document ~line:0 in
+  let last_line =
+    TextDocument.lineAt document ~line:(TextDocument.lineCount document - 1)
+  in
+  let range =
+    Range.makePositions
+      ~start:(TextLine.range first_line |> Range.start)
+      ~end_:(TextLine.range last_line |> Range.end_)
+  in
+  let edit = WorkspaceEdit.make () in
+  WorkspaceEdit.replace edit
+    ~uri:(TextDocument.uri document)
+    ~range ~newText:content;
+  Workspace.applyEdit ~edit
+
 let open_pp_doc ~document =
   let open Promise.Syntax in
+  let pp_pp_str = get_pp_pp_structure ~document in
   let* doc =
     Workspace.openTextDocument
       (`Uri
         (Uri.parse
            ("post-ppx: "
            ^ TextDocument.fileName document
-           ^ "?"
-           ^ get_pp_pp_structure ~document)
+           ^ "?" ^ "" (* pp_pp_str *))
            ()))
   in
   (*save uri pair to track changes*)
   set_changes_tracking document doc;
+  let _ =
+    let+ _ = replace_document_content ~content:pp_pp_str ~document:doc in
+    ()
+  in
   let+ _ =
     Window.showTextDocument ~document:(`TextDocument doc)
       ~column:ViewColumn.Beside ()
@@ -147,15 +167,6 @@ let _open_pp_pp_pp_doc ~document =
 let reload_pp_doc ~document =
   let open Promise.Syntax in
   let visibleTextEditors = Window.visibleTextEditors () in
-  let firstLine = TextDocument.lineAt ~line:0 document in
-  let lastLine =
-    TextDocument.lineAt ~line:(TextDocument.lineCount document - 1) document
-  in
-  let range =
-    Range.makePositions
-      ~start:(TextLine.range firstLine |> Range.start)
-      ~end_:(TextLine.range lastLine |> Range.start)
-  in
   let origin_uri =
     match
       put_keys_into_a_list (doc_string_uri ~document) !origin_to_pp_doc_map
@@ -168,11 +179,6 @@ let reload_pp_doc ~document =
   let* original_document =
     Workspace.openTextDocument (`Uri (Uri.parse origin_uri ()))
   in
-  let edit = WorkspaceEdit.make () in
-  WorkspaceEdit.replace edit
-    ~uri:(TextDocument.uri document)
-    ~range
-    ~newText:(get_pp_pp_structure ~document:original_document);
   match
     List.find
       ~f:(fun editor -> document_eq (TextEditor.document editor) document)
@@ -181,7 +187,9 @@ let reload_pp_doc ~document =
   | Some _ ->
     let+ _ =
       set_origin_changed ~key:(doc_string_uri ~document) ~data:false;
-      Workspace.applyEdit ~edit
+      replace_document_content
+        ~content:(get_pp_pp_structure ~document:original_document)
+        ~document
     in
     0
   | None -> Promise.resolve 1
