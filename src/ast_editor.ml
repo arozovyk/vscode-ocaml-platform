@@ -141,29 +141,6 @@ let open_pp_doc ~document =
   in
   0
 
-let _open_pp_pp_pp_doc ~document =
-  let open Promise.Syntax in
-  let* doc =
-    Workspace.openTextDocument
-      (`Uri
-        (Uri.parse
-           ("post-ppx: "
-           ^ TextDocument.fileName document
-           ^ "?"
-           ^ (get_pp_pp_structure ~document
-             |> Lexing.from_string |> Parse.implementation
-             |> Caml.Format.asprintf "%a" Pprintast.structure)
-           ^ " - RE-RE-parsed version ")
-           ()))
-  in
-  (*save uri pair to track changes*)
-  set_changes_tracking document doc;
-  let+ _ =
-    Window.showTextDocument ~document:(`TextDocument doc)
-      ~column:ViewColumn.Beside ()
-  in
-  0
-
 let reload_pp_doc ~document =
   let open Promise.Syntax in
   let visibleTextEditors = Window.visibleTextEditors () in
