@@ -180,10 +180,10 @@ const Element = React.memo(function Element({
 
         if (range.length == 4) {
           vscode.postMessage({
-            begin: range[0].toString(),
-            end: range[1].toString(),
-            r_begin: range[2].toString(),
-            r_end: range[3].toString(),
+            begin: range[2].toString(),
+            end: range[3].toString(),
+            r_begin: range[0].toString(),
+            r_end: range[1].toString(),
           });
         }
 
