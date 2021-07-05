@@ -483,30 +483,34 @@ let resolveCustomTextEditor ~(document : TextDocument.t) ~webviewPanel ~token :
     CustomTextEditorProvider.ResolvedEditor.t =
   let _ = token in
   let webview = WebviewPanel.webview webviewPanel in
-  let _ =
-    WebviewPanel.onDidDispose webviewPanel
-      ~listener:(fun () -> original_mode := true)
-      ()
-  in
   (*persist the webview*)
   webview_map :=
     Map.set !webview_map ~key:(doc_string_uri ~document) ~data:webview;
   let options = WebView.options webview in
   WebviewOptions.set_enableScripts options true;
   WebView.set_options webview options;
-  let _ =
+  let onDidReceiveMessage_disposable =
     WebView.onDidReceiveMessage webview
       ~listener:(onDidReceiveMessage_listener ~document)
       ()
   in
+
   let _ =
     let open Promise.Syntax in
     let+ r = get_html_for_WebView_from_file () in
     WebView.set_html webview r
   in
-  let _ =
+  let onDidChangeTextDocument_disposable =
     Workspace.onDidChangeTextDocument
       ~listener:(onDidChangeTextDocument_listener ~webview ~document)
+      ()
+  in
+  let _ =
+    WebviewPanel.onDidDispose webviewPanel
+      ~listener:(fun () ->
+        original_mode := true;
+        Disposable.dispose onDidReceiveMessage_disposable;
+        Disposable.dispose onDidChangeTextDocument_disposable)
       ()
   in
   transform_to_ast ~document ~webview;
