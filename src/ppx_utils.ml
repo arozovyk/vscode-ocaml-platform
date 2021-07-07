@@ -1,5 +1,4 @@
 open Import
-open Ppxlib.Utils.Ast_io
 
 let project_root_path ~document =
   let relative =
@@ -23,12 +22,14 @@ let get_pp_path ~(document : TextDocument.t) =
   | Failure errorMsg -> errorMsg
 
 let get_preprocessed_structure path =
-  let input_source = File path in
-  match read input_source ~input_kind:Necessarily_binary with
+  let open Ppxlib in
+  let input_source = Utils.Ast_io.File path in
+  match Utils.Ast_io.read input_source ~input_kind:Necessarily_binary with
   | Ok { ast; _ } -> (
     match ast with
     | Impl i -> i
-    | Intf _ -> failwith "Its an Intf")
+    | Intf _ -> failwith "The file contains a signature instead of a structure."
+    )
   | Error _ -> failwith ("Some error occured on parsing the " ^ path)
 
 (*this is not pretty*)
@@ -45,6 +46,3 @@ let get_preprocessed_structure path =
 let get_pp_pp_structure ~document =
   let str = get_preprocessed_structure (get_pp_path ~document) in
   Caml.Format.asprintf "%a" Pprintast.structure str
-
-
-
