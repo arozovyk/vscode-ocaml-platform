@@ -61,7 +61,6 @@ class virtual ['res] lift2 =
 
     method location_stack : location_stack -> location_stack -> 'res =
       fun l l' ->
-        
         (*Reparsing adds/removes location_stack*)
         match (l, l') with
         | [], _ :: _ -> self#list self#location l' l'
@@ -1740,13 +1739,11 @@ class virtual ['res] lift2 =
     method structure : structure -> structure -> 'res =
       (*Fixme: additional structure item inside ppml (ppx show for instance)*)
       fun l l' ->
-        (* print_endline "sizes:";
-        print_endline (Int.to_string (List.length l));
-        print_endline (Int.to_string (List.length l'));
-        if List.length l = List.length l' + 1 then
-          self#list self#structure_item l (List.hd l :: l')
-        else *)
-          self#list self#structure_item l l'
+        (* print_endline "sizes:"; print_endline (Int.to_string (List.length
+           l)); print_endline (Int.to_string (List.length l')); if List.length l
+           = List.length l' + 1 then self#list self#structure_item l (List.hd l
+           :: l') else *)
+        self#list self#structure_item l l'
 
     method structure_item : structure_item -> structure_item -> 'res =
       fun { pstr_desc; pstr_loc }

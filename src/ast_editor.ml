@@ -229,7 +229,6 @@ let manage_open_failure ~document =
 
 (*this needs testing (especially on linux)*)
 let open_preprocessed_doc_to_the_side ~document =
-  let _pp_path = get_pp_path ~document in
   try open_pp_doc ~document with
   | _ -> manage_open_failure ~document
 
@@ -479,9 +478,8 @@ let onDidReceiveMessage_listener msg ~(document : TextDocument.t) =
   else
     ()
 
-let resolveCustomTextEditor ~(document : TextDocument.t) ~webviewPanel ~token :
+let resolveCustomTextEditor ~(document : TextDocument.t) ~webviewPanel ~token:_ :
     CustomTextEditorProvider.ResolvedEditor.t =
-  let _ = token in
   let webview = WebviewPanel.webview webviewPanel in
   (*persist the webview*)
   webview_map :=

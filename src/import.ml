@@ -14,6 +14,13 @@ let property_exists json property =
 
 include Base
 
+module List = struct
+  include List
+
+  let sort lst ~compare =
+    List.sort lst ~compare:(fun a b -> compare a b |> Ordering.to_int)
+end
+
 type ('a, 'b) result = ('a, 'b) Result.t
 
 module Option = struct
@@ -24,6 +31,28 @@ module Option = struct
 
     let ( let+ ) x f = map ~f x
   end
+end
+
+module Ordering = struct
+  let is_less = function
+    | Ordering.Less -> true
+    | Greater
+    | Equal ->
+      false
+
+  let is_greater = function
+    | Ordering.Greater -> true
+    | Less
+    | Equal ->
+      false
+
+  let is_equal = function
+    | Ordering.Equal -> true
+    | Less
+    | Greater ->
+      false
+
+  include Ordering
 end
 
 module Or_error = struct
@@ -86,3 +115,47 @@ let with_confirmation message ~yes ?(no = "Cancel") f =
   match choice with
   | Some true -> f ()
   | _ -> Promise.return ()
+
+(** Builds application-specific functionality around [Vscode.Position] *)
+module Position = struct
+  let compare p1 p2 =
+    let r = Position.compareTo p1 ~other:p2 in
+    if r < 0 then
+      Ordering.Less
+    else if r = 0 then
+      Equal
+    else
+      Greater
+
+  let t_of_json json =
+    let line = Jsonoo.Decode.(field "line" int) json in
+    let character = Jsonoo.Decode.(field "character" int) json in
+    Position.make ~line ~character
+
+  let json_of_t t =
+    let line = Position.line t in
+    let character = Position.character t in
+    Jsonoo.Encode.(object_ [ ("line", int line); ("character", int character) ])
+
+  include Vscode.Position
+end
+
+(** Build application-specific functionality around [Vscode.Range] *)
+module Range = struct
+  let compare r1 r2 =
+    match Position.compare (Range.start r1) (Range.start r2) with
+    | (Ordering.Less | Greater) as r -> r
+    | Equal -> Position.compare (Range.end_ r1) (Range.end_ r2)
+
+  let t_of_json json =
+    let start = Jsonoo.Decode.field "start" Position.t_of_json json in
+    let end_ = Jsonoo.Decode.field "end" Position.t_of_json json in
+    Range.makePositions ~start ~end_
+
+  let json_of_t t =
+    let start = Range.start t |> Position.json_of_t in
+    let end_ = Range.end_ t |> Position.json_of_t in
+    Jsonoo.Encode.(object_ [ ("start", start); ("end", end_) ])
+
+  include Vscode.Range
+end

@@ -186,6 +186,16 @@
         }
       },
       {
+        "command": "ocaml.next-hole",
+        "category": "OCaml",
+        "title": "Jump to Next Typed Hole"
+      },
+      {
+        "command": "ocaml.prev-hole",
+        "category": "OCaml",
+        "title": "Jump to Previous Typed Hole"
+      },
+      {
         "command": "ocaml.current-dune-file",
         "category": "OCaml",
         "title": "Open Dune File (located in the same folder)"
@@ -249,9 +259,19 @@
         "when": "editorTextFocus && editorLangId == ocaml || editorTextFocus && editorLangId == ocaml.interface || editorTextFocus && editorLangId == reason || editorTextFocus && editorLangId == ocaml.ocamllex || editorTextFocus && editorLangId == ocaml.menhir"
       },
       {
+        "command": "ocaml.next-hole",
+        "key": "Alt+L",
+        "when": "editorLangId == ocaml || editorLangId == ocaml.interface || editorLangId == reason || editorLangId == ocaml.ocamllex"
+      },
+      {
         "command": "ocaml.reveal-ast-node",
         "key": "Shift+Ctrl+D",
         "when": "editorTextFocus && editorLangId == ocaml || editorTextFocus && editorLangId == ocaml.interface || editorTextFocus && editorLangId == reason || editorTextFocus && editorLangId == ocaml.ocamllex || editorTextFocus && editorLangId == ocaml.menhir"
+      },
+      {
+        "command": "ocaml.prev-hole",
+        "key": "Shift+Alt+L",
+        "when": "editorLangId == ocaml || editorLangId == ocaml.interface || editorLangId == reason || editorLangId == ocaml.ocamllex"
       }
     ],
     "menus": {
@@ -271,6 +291,14 @@
         {
           "command": "ocaml.current-dune-file",
           "when": "editorIsOpen"
+        },
+        {
+          "command": "ocaml.next-hole",
+          "when": "editorLangId == ocaml || editorLangId == ocaml.interface || editorLangId == reason || editorLangId == ocaml.ocamllex"
+        },
+        {
+          "command": "ocaml.prev-hole",
+          "when": "editorLangId == ocaml || editorLangId == ocaml.interface || editorLangId == reason || editorLangId == ocaml.ocamllex"
         },
         {
           "command": "ocaml.refresh-switches",
@@ -902,9 +930,9 @@
   },
   "devDependencies": {
     "@types/vscode": "1.57.0",
-    "esbuild": "0.12.9",
+    "esbuild": "0.12.15",
     "fs-extra": "10.0.0",
-    "mocha": "9.0.1",
+    "mocha": "9.0.2",
     "npm-run-all": "4.1.5",
     "ovsx": "0.1.0-next.97d460c",
     "prettier": "2.3.2",
