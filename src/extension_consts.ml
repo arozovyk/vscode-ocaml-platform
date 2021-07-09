@@ -42,6 +42,18 @@ module Commands = struct
 
   let open_pp_editor_and_ast_explorer =
     ocaml_prefixed "open-pp-editor-and-ast-explorer"
+
+  let next_hole = ocaml_prefixed "next-hole"
+
+  let prev_hole = ocaml_prefixed "prev-hole"
+end
+
+module Command_errors = struct
+  let text_editor_must_be_active ~expl cmd_name =
+    Printf.sprintf
+      "The command \"OCaml: %s\" should be run only with a file open in the \
+       editor. %s"
+      cmd_name expl
 end
 
 (* TODO: Refactor the code so that we don't need any "constants" module *)
