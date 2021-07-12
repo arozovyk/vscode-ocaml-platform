@@ -2107,10 +2107,56 @@ module Progress = struct
   include [%js: val report : t -> value:value -> unit [@@js.call]]
 end
 
+module TextDocumentContentChangeEvent = struct
+  include Interface.Make ()
+
+  include
+    [%js:
+    val range : t -> Range.t [@@js.get]
+
+    val rangeLength : t -> int [@@js.get]
+
+    val rangeOffset : t -> int [@@js.get]
+
+    val text : t -> string [@@js.get]]
+end
+
+module TextDocumentChangeEvent = struct
+  include Interface.Make ()
+
+  include
+    [%js:
+    val contentChanges : t -> TextDocumentContentChangeEvent.t list [@@js.get]
+
+    val document : t -> TextDocument.t [@@js.get]]
+end
+
+module TextDocumentContentProvider = struct
+  include Interface.Make ()
+
+  module OnDidChange = Event.Make (Uri)
+
+  include
+    [%js:
+    val onDidChange : t -> OnDidChange.t [@@js.get]
+
+    val provideTextDocumentContent :
+      t -> uri:Uri.t -> token:CancellationToken.t -> string ProviderResult.t
+      [@@js.call]
+
+    val create :
+         onDidChange:OnDidChange.t
+      -> provideTextDocumentContent:
+           (uri:Uri.t -> token:CancellationToken.t -> string ProviderResult.t)
+      -> t
+      [@@js.builder]]
+end
+
 module Workspace = struct
   module OnDidChangeWorkspaceFolders = Event.Make (WorkspaceFolder)
   module OnDidOpenTextDocument = Event.Make (TextDocument)
   module OnDidCloseTextDocument = Event.Make (TextDocument)
+  module OnDidChangeTextDocument = Event.Make (TextDocumentChangeEvent)
 
   type textDocumentOptions =
     { language : string
@@ -2142,6 +2188,9 @@ module Workspace = struct
 
     val onDidCloseTextDocument : OnDidCloseTextDocument.t
       [@@js.global "vscode.workspace.onDidCloseTextDocument"]
+
+    val onDidChangeTextDocument : OnDidChangeTextDocument.t
+      [@@js.global "vscode.workspace.onDidChangeTextDocument"]
 
     val getConfiguration :
          ?section:string
