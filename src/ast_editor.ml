@@ -1,5 +1,7 @@
 open Import
 
+exception User_error of string
+
 let read_html_file () =
   let filename = Node.__dirname () ^ "/../astexplorer/dist/index.html" in
   Fs.readFile filename
@@ -43,16 +45,12 @@ end = struct
   let get_pp_path ~(document : TextDocument.t) =
     let relative = relative_document_path ~document in
     match project_root_path () with
-    | None ->
-      let (_ : _ Promise.t) =
-        Window.showErrorMessage ~message:"Project root wasn't found." ()
-      in
-      None
+    | None -> raise (User_error "Project root wasn't found.")
     | Some root ->
       let build_root = "_build/default" in
       let fname =
         match get_kind ~document with
-        | Unknown -> failwith "Unknown file extension"
+        | Unknown -> raise (User_error "Unknown file extension")
         | Structure -> String.chop_suffix_exn ~suffix:".ml" relative ^ ".pp.ml"
         | Signature ->
           String.chop_suffix_exn ~suffix:".mli" relative ^ ".pp.mli"
@@ -64,15 +62,14 @@ end
 let fetch_pp_code ~document =
   match Pp_path.get_pp_path ~document with
   | None ->
-    show_message `Error "Unable to find preprocessed file for %s"
-      (Uri.toString (TextDocument.uri document) ());
-    ""
+    raise
+      (User_error
+         ("Unable to find preprocessed file for "
+         ^ Uri.toString (TextDocument.uri document) ()))
   | Some path -> (
     match Ppx_tools.get_reparsed_code_from_pp_file ~path with
     | Ok code -> code
-    | Error err_msg ->
-      show_message `Error "%s" err_msg;
-      "")
+    | Error err_msg -> raise (User_error err_msg))
 
 let transform_to_ast instance ~(document : TextDocument.t)
     ~(webview : WebView.t) =
@@ -107,7 +104,11 @@ let transform_to_ast instance ~(document : TextDocument.t)
           | Error err_msg -> make_value (Error err_msg)
           | Ok res ->
             let pp_json =
-              let pp_code = fetch_pp_code ~document in
+              let pp_code =
+                match fetch_pp_code ~document with
+                | exception Sys_error e -> raise (User_error e)
+                | pp_pp_str -> pp_pp_str
+              in
               let lex = Lexing.from_string pp_code in
               Result.ok_or_failwith
                 (match Ppxlib.Ast_io.get_ast res with
@@ -126,9 +127,12 @@ let transform_to_ast instance ~(document : TextDocument.t)
 
 let onDidChangeTextDocument_listener instance event ~(document : TextDocument.t)
     ~(webview : WebView.t) =
-  let changed_document = TextDocumentChangeEvent.document event in
-  if document_eq document changed_document then
-    transform_to_ast instance ~document ~webview
+  try
+    let changed_document = TextDocumentChangeEvent.document event in
+    if document_eq document changed_document then
+      transform_to_ast instance ~document ~webview
+  with
+  | User_error err_msg -> show_message `Error "%s" err_msg
 
 let refresh_ast_explorer instance ~document ~webview_opt =
   match webview_opt with
@@ -136,51 +140,55 @@ let refresh_ast_explorer instance ~document ~webview_opt =
   | None -> ()
 
 let onDidReceiveMessage_listener instance msg ~(document : TextDocument.t) =
-  let ast_editor_state = Extension_instance.ast_editor_state instance in
-  let int_prop name =
-    if Ojs.has_property msg name then
-      Some (Int.of_string (Ojs.string_of_js (Ojs.get_prop_ascii msg name)))
-    else
-      None
-  in
-  match int_prop "selectedOutput" with
-  | Some i ->
-    let webview_opt =
-      let ast_editor_state = Extension_instance.ast_editor_state instance in
-      Ast_editor_state.find_webview_by_doc ast_editor_state
-        (TextDocument.uri document)
+  try
+    let ast_editor_state = Extension_instance.ast_editor_state instance in
+    let int_prop name =
+      if Ojs.has_property msg name then
+        Some (Int.of_string (Ojs.string_of_js (Ojs.get_prop_ascii msg name)))
+      else
+        None
     in
-    Ast_editor_state.set_original_mode ast_editor_state (i = 0);
-    refresh_ast_explorer instance ~document ~webview_opt
-  | None -> (
-    match Option.both (int_prop "begin") (int_prop "end") with
-    | None -> ()
-    | Some (cbegin, cend) ->
-      let apply_selection editor cbegin cend =
-        let document = TextEditor.document editor in
-        let anchor = Vscode.TextDocument.positionAt document ~offset:cbegin in
-        let active = Vscode.TextDocument.positionAt document ~offset:cend in
-        TextEditor.set_selection editor
-          (Selection.makePositions ~anchor ~active);
-        TextEditor.revealRange editor
-          ~range:(Range.makePositions ~start:anchor ~end_:active)
-          ()
+    match int_prop "selectedOutput" with
+    | Some i ->
+      let webview_opt =
+        let ast_editor_state = Extension_instance.ast_editor_state instance in
+        Ast_editor_state.find_webview_by_doc ast_editor_state
+          (TextDocument.uri document)
       in
-      Vscode.Window.visibleTextEditors ()
-      |> List.iter ~f:(fun editor ->
-             let visible_doc = TextEditor.document editor in
-             if (* !original_mode && *) document_eq document visible_doc then
-               apply_selection editor cbegin cend
-             else if
-               (* (not !original_mode) && *)
-               (Ast_editor_state.entry_exists ast_editor_state
-                  ~origin_doc:(TextDocument.uri document))
-                 ~pp_doc:(TextDocument.uri visible_doc)
-               && not (Ast_editor_state.get_original_mode ast_editor_state)
-             then
-               match Option.both (int_prop "r_begin") (int_prop "r_end") with
-               | None -> ()
-               | Some (rcbegin, rcend) -> apply_selection editor rcbegin rcend))
+      Ast_editor_state.set_original_mode ast_editor_state (i = 0);
+      refresh_ast_explorer instance ~document ~webview_opt
+    | None -> (
+      match Option.both (int_prop "begin") (int_prop "end") with
+      | None -> ()
+      | Some (cbegin, cend) ->
+        let apply_selection editor cbegin cend =
+          let document = TextEditor.document editor in
+          let anchor = Vscode.TextDocument.positionAt document ~offset:cbegin in
+          let active = Vscode.TextDocument.positionAt document ~offset:cend in
+          TextEditor.set_selection editor
+            (Selection.makePositions ~anchor ~active);
+          TextEditor.revealRange editor
+            ~range:(Range.makePositions ~start:anchor ~end_:active)
+            ()
+        in
+        Vscode.Window.visibleTextEditors ()
+        |> List.iter ~f:(fun editor ->
+               let visible_doc = TextEditor.document editor in
+               if (* !original_mode && *) document_eq document visible_doc then
+                 apply_selection editor cbegin cend
+               else if
+                 (* (not !original_mode) && *)
+                 (Ast_editor_state.entry_exists ast_editor_state
+                    ~origin_doc:(TextDocument.uri document))
+                   ~pp_doc:(TextDocument.uri visible_doc)
+                 && not (Ast_editor_state.get_original_mode ast_editor_state)
+               then
+                 match Option.both (int_prop "r_begin") (int_prop "r_end") with
+                 | None -> ()
+                 | Some (rcbegin, rcend) -> apply_selection editor rcbegin rcend)
+      )
+  with
+  | User_error err_msg -> show_message `Error "%s" err_msg
 
 let on_hover custom_doc webview =
   let provider =
@@ -206,9 +214,7 @@ let activate_hover_mode instance ~document =
       (TextDocument.uri document)
   with
   | Some webview -> on_hover document webview
-  | None ->
-    show_message `Error "Webview wasn't found while switching hover mode";
-    failwith "Webview wasn't found while switching hover mode"
+  | None -> raise (User_error "Webview wasn't found while switching hover mode")
 
 let resolveCustomTextEditor extension instance ~(document : TextDocument.t)
     ~webviewPanel ~token:_ : CustomTextEditorProvider.ResolvedEditor.t =
@@ -280,7 +286,7 @@ let open_pp_doc instance ~document =
   let open Promise.Syntax in
   let ast_editor_state = Extension_instance.ast_editor_state instance in
   match fetch_pp_code ~document with
-  | exception Sys_error e -> Promise.return (Error e)
+  | exception Sys_error e -> raise (User_error e)
   | pp_pp_str ->
     let* doc =
       Workspace.openTextDocument
@@ -307,7 +313,7 @@ let reload_pp_doc instance ~document =
         (TextDocument.uri document)
     with
     | Some x -> x
-    | None -> failwith "Failed finding the original document URI."
+    | None -> raise (User_error "Failed finding the original document URI.")
   in
   let* original_document =
     Workspace.openTextDocument (`Uri (Uri.parse origin_uri ()))
@@ -316,11 +322,14 @@ let reload_pp_doc instance ~document =
     List.find visibleTextEditors ~f:(fun editor ->
         document_eq (TextEditor.document editor) document)
   with
-  | None -> Promise.return (Error "Visible editor wasn't found")
+  | None -> raise (User_error "Visible editor wasn't found")
   | Some _ ->
-    replace_document_content
-      ~content:(fetch_pp_code ~document:original_document)
-      ~document;
+    let content =
+      match fetch_pp_code ~document:original_document with
+      | exception Sys_error e -> raise (User_error e)
+      | pp_code -> pp_code
+    in
+    replace_document_content ~content ~document;
     Promise.return (Ok 0)
 
 let rec manage_choice instance choice ~document =
@@ -361,7 +370,7 @@ let rec manage_choice instance choice ~document =
     res
   | Some `Abandon
   | None ->
-    Promise.return (Error "Operation has been abandoned.")
+    raise (User_error "Operation has been abandoned.")
 
 and manage_open_failure err_msg instance ~document =
   let open Promise.Syntax in
@@ -386,42 +395,47 @@ let open_both_ppx_ast instance ~document =
 
   match pp_doc_open with
   | Ok _ -> open_ast_explorer ~uri:(TextDocument.uri document)
-  | Error e ->
-    show_message `Error "%s" e;
-    Promise.return ()
+  | Error e -> raise (User_error e)
 
 module Command = struct
   let _open_ast_explorer_to_the_side =
     let handler _ ~textEditor ~edit:_ ~args:_ =
-      let (_ : unit Promise.t) =
-        let uri = TextEditor.document textEditor |> TextDocument.uri in
-        open_ast_explorer ~uri
-      in
-      ()
+      try
+        let (_ : unit Promise.t) =
+          let uri = TextEditor.document textEditor |> TextDocument.uri in
+          open_ast_explorer ~uri
+        in
+        ()
+      with
+      | User_error err_msg -> show_message `Error "%s" err_msg
     in
     Extension_commands.register_text_editor
       ~id:Extension_consts.Commands.open_ast_explorer_to_the_side handler
 
   let _reveal_ast_node =
     let handler (instance : Extension_instance.t) ~textEditor ~edit:_ ~args:_ =
-      let document = TextEditor.document textEditor in
-      let webview_opt =
-        let ast_editor_state = Extension_instance.ast_editor_state instance in
-        Ast_editor_state.find_webview_by_doc ast_editor_state
-          (TextDocument.uri document)
-      in
-      let offset =
-        let selection = Vscode.TextEditor.selection textEditor in
-        let position = Vscode.Selection.start selection in
-        TextDocument.offsetAt document ~position
-      in
+      try
+        let document = TextEditor.document textEditor in
+        let webview_opt =
+          let ast_editor_state = Extension_instance.ast_editor_state instance in
+          Ast_editor_state.find_webview_by_doc ast_editor_state
+            (TextDocument.uri document)
+        in
+        let offset =
+          let selection = Vscode.TextEditor.selection textEditor in
+          let position = Vscode.Selection.start selection in
+          TextDocument.offsetAt document ~position
+        in
 
-      match webview_opt with
-      | Some webview -> send_msg "focus" (Ojs.int_to_js offset) ~webview
-      | None ->
-        show_message `Warn
-          "Wrong output modee inside the AST explorer, please select the \
-           correct tab"
+        match webview_opt with
+        | Some webview -> send_msg "focus" (Ojs.int_to_js offset) ~webview
+        | None ->
+          raise
+            (User_error
+               "Wrong output modee inside the AST explorer, please select the \
+                correct tab")
+      with
+      | User_error err_msg -> show_message `Error "%s" err_msg
     in
 
     Extension_commands.register_text_editor
@@ -429,18 +443,21 @@ module Command = struct
 
   let _switch_hover_mode =
     let handler (instance : Extension_instance.t) ~textEditor ~edit:_ ~args:_ =
-      let ast_editor_state = Extension_instance.ast_editor_state instance in
-      let hover_dispoable =
-        match Ast_editor_state.get_hover_disposable ast_editor_state with
-        | Some d ->
-          Disposable.dispose d;
-          None
-        | None ->
-          Some
-            (activate_hover_mode instance
-               ~document:(TextEditor.document textEditor))
-      in
-      Ast_editor_state.set_hover_disposable ast_editor_state hover_dispoable
+      try
+        let ast_editor_state = Extension_instance.ast_editor_state instance in
+        let hover_dispoable =
+          match Ast_editor_state.get_hover_disposable ast_editor_state with
+          | Some d ->
+            Disposable.dispose d;
+            None
+          | None ->
+            Some
+              (activate_hover_mode instance
+                 ~document:(TextEditor.document textEditor))
+        in
+        Ast_editor_state.set_hover_disposable ast_editor_state hover_dispoable
+      with
+      | User_error err_msg -> show_message `Error "%s" err_msg
     in
 
     Extension_commands.register_text_editor
@@ -448,26 +465,32 @@ module Command = struct
 
   let _show_preprocessed_document =
     let handler (instance : Extension_instance.t) ~textEditor ~edit:_ ~args:_ =
-      let document = TextEditor.document textEditor in
-      let (_ : unit Promise.t) =
-        let open Promise.Syntax in
-        let+ (_ : (int, string) result) =
-          open_preprocessed_doc_to_the_side instance ~document
+      try
+        let document = TextEditor.document textEditor in
+        let (_ : unit Promise.t) =
+          let open Promise.Syntax in
+          let+ (_ : (int, string) result) =
+            open_preprocessed_doc_to_the_side instance ~document
+          in
+          ()
         in
         ()
-      in
-      ()
+      with
+      | User_error err_msg -> show_message `Error "%s" err_msg
     in
     Extension_commands.register_text_editor
       ~id:Extension_consts.Commands.show_preprocessed_document handler
 
   let _open_pp_editor_and_ast_explorer =
     let handler (instance : Extension_instance.t) ~textEditor ~edit:_ ~args:_ =
-      let (_ : unit Promise.t) =
-        let document = TextEditor.document textEditor in
-        open_both_ppx_ast instance ~document
-      in
-      ()
+      try
+        let (_ : unit Promise.t) =
+          let document = TextEditor.document textEditor in
+          open_both_ppx_ast instance ~document
+        in
+        ()
+      with
+      | User_error err_msg -> show_message `Error "%s" err_msg
     in
     Extension_commands.register_text_editor
       ~id:Extension_consts.Commands.open_pp_editor_and_ast_explorer handler
@@ -497,23 +520,29 @@ let manage_changed_origin instance ~document =
   manage_choice instance choice ~document
 
 let onDidSaveTextDocument_listener_pp instance document =
-  let ast_editor_state = Extension_instance.ast_editor_state instance in
-  Ast_editor_state.on_origin_update_content ast_editor_state
-    (TextDocument.uri document)
+  try
+    let ast_editor_state = Extension_instance.ast_editor_state instance in
+    Ast_editor_state.on_origin_update_content ast_editor_state
+      (TextDocument.uri document)
+  with
+  | User_error err_msg -> show_message `Error "%s" err_msg
 
 let onDidChangeActiveTextEditor_listener instance e =
-  let ast_editor_state = Extension_instance.ast_editor_state instance in
-  if not (TextEditor.t_to_js e |> Ojs.is_null) then
-    let document = TextEditor.document e in
-    match
-      Ast_editor_state.pp_status ast_editor_state (TextDocument.uri document)
-    with
-    | `Absent_or_pped -> ()
-    | `Original ->
-      let (_ : (int, string) result Promise.t) =
-        manage_changed_origin instance ~document
-      in
-      ()
+  try
+    let ast_editor_state = Extension_instance.ast_editor_state instance in
+    if not (TextEditor.t_to_js e |> Ojs.is_null) then
+      let document = TextEditor.document e in
+      match
+        Ast_editor_state.pp_status ast_editor_state (TextDocument.uri document)
+      with
+      | `Absent_or_pped -> ()
+      | `Original ->
+        let (_ : (int, string) result Promise.t) =
+          manage_changed_origin instance ~document
+        in
+        ()
+  with
+  | User_error err_msg -> show_message `Error "%s" err_msg
 
 let close_visible_editors_by_uri uri =
   let f e =
@@ -533,10 +562,13 @@ let close_visible_editors_by_uri uri =
   Window.visibleTextEditors () |> List.iter ~f
 
 let onDidCloseTextDocument_listener instance (document : TextDocument.t) =
-  let ast_editor_state = Extension_instance.ast_editor_state instance in
-  Ast_editor_state.remove_doc_entries ast_editor_state
-    (TextDocument.uri document);
-  close_visible_editors_by_uri (Uri.toString (TextDocument.uri document) ())
+  try
+    let ast_editor_state = Extension_instance.ast_editor_state instance in
+    Ast_editor_state.remove_doc_entries ast_editor_state
+      (TextDocument.uri document);
+    close_visible_editors_by_uri (Uri.toString (TextDocument.uri document) ())
+  with
+  | User_error err_msg -> show_message `Error "%s" err_msg
 
 let register extension instance =
   let editorProvider =
